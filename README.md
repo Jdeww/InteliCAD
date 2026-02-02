@@ -1,4 +1,4 @@
-# GTC 2026 Golden Ticket
+# InteliCAD
 
 A Python project for [brief description of the project purpose].
 
