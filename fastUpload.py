@@ -15,7 +15,7 @@ jobs = {}
 # ============================================================================
 # NVIDIA API CONFIGURATION
 # ============================================================================
-NVIDIA_API_KEY = "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"  # <-- REPLACE THIS!
+NVIDIA_API_KEY = ""  # <-- REPLACE THIS!
 # ============================================================================
 
 NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
