@@ -2,7 +2,7 @@ import httpx
 import json
 
 # Replace with your actual API key
-NVIDIA_API_KEY = "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"  
+NVIDIA_API_KEY = ""  
 
 print("=" * 80)
 print("TESTING NVIDIA BUILD.NVIDIA.COM API")
