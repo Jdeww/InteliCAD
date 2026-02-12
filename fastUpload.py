@@ -15,7 +15,7 @@ jobs = {}
 # ============================================================================
 # NVIDIA API CONFIGURATION
 # ============================================================================
-NVIDIA_API_KEY = "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"  # <-- REPLACE THIS!
+NVIDIA_API_KEY = ""  # <-- REPLACE THIS!
 # ============================================================================
 
 NVIDIA_API_URL = ""
