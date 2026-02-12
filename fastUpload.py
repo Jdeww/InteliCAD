@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, Form
+from fastapi import FastAPI, UploadFile, Form # pyright: ignore[reportMissingImports]
 from fastapi.responses import FileResponse
 import shutil
 import os
@@ -102,8 +102,8 @@ def _parse_nemotron_json(raw: str) -> dict:
     }
 
 
-async def call_nemotron(system_prompt: str, user_message: str, max_tokens: int = 3072) -> dict:
-    """Helper function to call Nemotron API"""
+async def call_nemotron(system_prompt: str, user_message: str, max_tokens: int = 3072, model: str = "nvidia/llama-3.3-nemotron-super-49b-v1.5") -> dict:
+    """Helper function to call Nvidia API with any model"""
     if NVIDIA_API_KEY == "nvapi-PASTE_YOUR_KEY_HERE":
         print("WARNING: Nvidia API key not set!")
         return {"error": "Nvidia API key not configured", "raw_text": user_message}
@@ -113,7 +113,7 @@ async def call_nemotron(system_prompt: str, user_message: str, max_tokens: int =
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        "model": model,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user",   "content": user_message}
@@ -268,6 +268,7 @@ async def phase2_generate_operations(design_plan: dict, model_analysis: dict = N
     
     # STEP 1: Let Nemotron think
     print("🧠 Phase 2 Step 1: Letting Nemotron analyze and plan...")
+    print("   Using nvidia/llama-3.3-nemotron-super-49b-v1.5 (strategic reasoning)")
     thinking_prompt = "You are a CAD expert. Think through the strategy for this design."
     
     if model_analysis:
@@ -275,11 +276,19 @@ async def phase2_generate_operations(design_plan: dict, model_analysis: dict = N
     else:
         thinking_msg = f"""Design Plan:\n{json.dumps(design_plan, indent=2)}\n\nThink through the approach with best-guess parameters."""
     
-    thinking = await call_nemotron(thinking_prompt, thinking_msg, max_tokens=1500)
+    # Use Nemotron Super for strategic thinking (it's good at this!)
+    thinking = await call_nemotron(
+        thinking_prompt, 
+        thinking_msg, 
+        max_tokens=1500,
+        model="nvidia/llama-3.3-nemotron-super-49b-v1.5"
+    )
     print(f"✓ Thinking complete")
     
     # STEP 2: Request clean JSON only
     print("📝 Phase 2 Step 2: Generating operations JSON...")
+    print("   Using meta/llama-3.1-8b-instruct (fast, structured output)")
+    
     json_prompt = """You are a JSON generator. Output ONLY the JSON object, nothing else.
 
 Example input: {"goal": "reduce_weight", "target": 30}
@@ -299,7 +308,13 @@ Output:"""
 
 Output:"""
     
-    result = await call_nemotron(json_prompt, json_msg, max_tokens=2048)
+    # Use fast Llama 3.1 8B for JSON generation (more obedient, no thinking tendency)
+    result = await call_nemotron(
+        json_prompt, 
+        json_msg, 
+        max_tokens=2048,
+        model="meta/llama-3.1-8b-instruct"
+    )
     
     ops_count = len(result.get("operations", []))
     if ops_count == 0:
