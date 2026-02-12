@@ -18,69 +18,122 @@ jobs = {}
 NVIDIA_API_KEY = ""  # <-- REPLACE THIS!
 # ============================================================================
 
-NVIDIA_API_URL = ""
+NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+
+
+def _parse_nemotron_json(raw: str) -> dict:
+    """
+    Ultra-robust JSON parser for Nemotron responses.
+    Handles: <think> tags anywhere, comments, trailing commas, incomplete JSON
+    """
+    import re
+    
+    text = raw
+    
+    # 1. Remove ALL <think>...</think> blocks (even nested/broken ones)
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<think>.*', '', text, flags=re.DOTALL | re.IGNORECASE)  # Unclosed think tags
+    
+    # 2. Extract from ``` fences
+    if "```json" in text:
+        text = text.split("```json", 1)[1].split("```")[0].strip()
+    elif "```" in text:
+        parts = text.split("```")
+        if len(parts) >= 3:
+            text = parts[1].strip()
+    
+    # 3. Find the LARGEST valid JSON object (first { to matching })
+    # This handles cases where there's text after the JSON
+    start = text.find("{")
+    if start == -1:
+        return {
+            "operations": [],
+            "error": "No JSON object found",
+            "raw_response": raw[:1500]  # Save raw response for debugging
+        }
+    
+    # Count braces to find the matching closing brace
+    brace_count = 0
+    end = -1
+    for i in range(start, len(text)):
+        if text[i] == '{':
+            brace_count += 1
+        elif text[i] == '}':
+            brace_count -= 1
+            if brace_count == 0:
+                end = i
+                break
+    
+    if end == -1:
+        return {
+            "operations": [],
+            "error": "Incomplete JSON object",
+            "raw_response": raw[:1500]  # Save raw response for debugging
+        }
+    
+    text = text[start:end+1]
+    
+    # 4. Clean up the JSON
+    text = re.sub(r'//[^\n]*', '', text)  # Remove // comments
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)  # Remove /* */ comments
+    text = re.sub(r',\s*([}\]])', r'\1', text)  # Remove trailing commas
+    
+    # 5. Try standard JSON
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as ex:
+        print(f"JSON parse error: {ex.msg} near: {text[max(0,ex.pos-50):ex.pos+50]!r}")
+    
+    # 6. Try json5 (handles unquoted keys, trailing commas, etc.)
+    try:
+        import json5
+        return json5.loads(text)
+    except ImportError:
+        print("Tip: pip install json5 for better tolerance")
+    except Exception as ex5:
+        print(f"json5 also failed: {ex5}")
+    
+    # 7. Last resort - return empty operations so job can continue
+    return {
+        "operations": [],
+        "summary": raw[:200],
+        "raw_response": raw[:1500],
+        "error": "Could not parse Nemotron JSON response"
+    }
 
 
 async def call_nemotron(system_prompt: str, user_message: str, max_tokens: int = 3072) -> dict:
-    """
-    Helper function to call Nemotron API
-    """
+    """Helper function to call Nemotron API"""
     if NVIDIA_API_KEY == "nvapi-PASTE_YOUR_KEY_HERE":
-        print("⚠️  WARNING: Nvidia API key not set! Using fallback mode.")
-        return {
-            "error": "Nvidia API key not configured",
-            "raw_text": user_message
-        }
-    
+        print("WARNING: Nvidia API key not set!")
+        return {"error": "Nvidia API key not configured", "raw_text": user_message}
+
     headers = {
         "Authorization": f"Bearer {NVIDIA_API_KEY}",
         "Content-Type": "application/json"
     }
-    
     payload = {
         "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message}
+            {"role": "user",   "content": user_message}
         ],
         "temperature": 0.2,
         "top_p": 0.7,
         "max_tokens": max_tokens
     }
-    
+
     try:
         async with httpx.AsyncClient() as client:
-            print(f"🔄 Calling Nvidia Nemotron API...")
-            response = await client.post(
-                NVIDIA_API_URL,
-                headers=headers,
-                json=payload,
-                timeout=60.0
-            )
+            print("Calling Nvidia Nemotron API...")
+            response = await client.post(NVIDIA_API_URL, headers=headers, json=payload, timeout=60.0)
             response.raise_for_status()
-            
-            result = response.json()
-            content = result["choices"][0]["message"]["content"]
-            print(f"✓ Received response from Nemotron")
-            
-            # Remove <think> tags if present
-            if "<think>" in content and "</think>" in content:
-                content = content.split("</think>", 1)[1].strip()
-            
-            # Strip markdown code blocks
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0].strip()
-            
-            return json.loads(content)
-            
+            raw = response.json()["choices"][0]["message"]["content"]
+            print("Received response from Nemotron")
+            return _parse_nemotron_json(raw)
     except Exception as e:
-        print(f"❌ Error calling Nemotron API: {e}")
-        return {
-            "error": str(e),
-            "raw_text": user_message
-        }
+        print(f"Error calling Nemotron API: {e}")
+        return {"error": str(e), "raw_text": user_message}
 
 
 async def phase1_design_intent_analysis(user_command: str) -> dict:
@@ -208,98 +261,58 @@ CRITICAL: Always output valid JSON. Think through the engineering tradeoffs care
 async def phase2_generate_operations(design_plan: dict, model_analysis: dict = None) -> dict:
     """
     PHASE 2: Convert high-level plan into specific CAD operations
-    Uses model analysis data if available
+    TWO-STEP APPROACH:
+    1. Let Nemotron think freely (no JSON pressure)
+    2. Request clean JSON output based on thinking
     """
     
-    system_prompt = """You are a CAD operation generator. Convert high-level design strategies into specific, 
-executable Fusion 360 API operations with precise parameters.
-
-Given a design plan and optional model analysis, generate the exact sequence of CAD operations.
-
-## Response Format:
-
-{
-  "operations": [
-    {
-      "id": "op_001",
-      "type": "shell_body",
-      "params": {
-        "body_name": "Body1",
-        "wall_thickness": 3.0,
-        "inside_offset": true,
-        "faces_to_remove": ["top_face"]
-      },
-      "reasoning": "Create hollow interior to reduce mass",
-      "expected_results": {
-        "weight_reduction_percent": 65,
-        "new_mass_estimate_grams": 85
-      },
-      "depends_on": [],
-      "rollback_if": "wall_thickness_too_thin"
-    },
-    {
-      "id": "op_002", 
-      "type": "add_ribs",
-      "params": {
-        "thickness": 2.0,
-        "height": "full",
-        "pattern": "cross_bracing",
-        "locations": ["interior_vertical_walls"],
-        "fillet_radius": 0.5
-      },
-      "reasoning": "Reinforce structure after shelling",
-      "expected_results": {
-        "strength_retention_percent": 85
-      },
-      "depends_on": ["op_001"],
-      "rollback_if": "stress_exceeds_threshold"
-    }
-  ],
-  "validation_steps": [
-    {
-      "after_operation": "op_001",
-      "check": "mass_analysis",
-      "criteria": {
-        "mass_reduction_min": 50,
-        "mass_reduction_max": 70
-      }
-    },
-    {
-      "after_operation": "op_002",
-      "check": "stress_analysis",
-      "criteria": {
-        "max_stress_mpa": 15,
-        "safety_factor_min": 2.0
-      }
-    }
-  ],
-  "fallback_plan": {
-    "if_validation_fails": [
-      "increase_wall_thickness_by_1mm",
-      "add_additional_ribs"
-    ]
-  }
-}
-
-CRITICAL: Be specific with parameters. Use actual numbers, not ranges."""
-
+    # STEP 1: Let Nemotron think
+    print("🧠 Phase 2 Step 1: Letting Nemotron analyze and plan...")
+    thinking_prompt = "You are a CAD expert. Think through the strategy for this design."
+    
     if model_analysis:
-        user_message = f"""Design Plan:
-{json.dumps(design_plan, indent=2)}
+        thinking_msg = f"""Design Plan:\n{json.dumps(design_plan, indent=2)}\n\nModel Data:\n{json.dumps(model_analysis, indent=2)}\n\nThink through: exact parameters, sequence, edge cases."""
+    else:
+        thinking_msg = f"""Design Plan:\n{json.dumps(design_plan, indent=2)}\n\nThink through the approach with best-guess parameters."""
+    
+    thinking = await call_nemotron(thinking_prompt, thinking_msg, max_tokens=1500)
+    print(f"✓ Thinking complete")
+    
+    # STEP 2: Request clean JSON only
+    print("📝 Phase 2 Step 2: Generating operations JSON...")
+    json_prompt = """You are a JSON generator. Output ONLY the JSON object, nothing else.
 
-Model Analysis:
+Example input: {"goal": "reduce_weight", "target": 30}
+Example output: {"operations": [{"id": "op_001", "type": "shell_body", "params": {"wall_thickness": 2.5}}]}
+
+Available types: shell_body, add_ribs, fillet_edges, fillet_all_edges, mirror, rotate, scale, topology_optimization, run_topology_optimization, add_cross_bracing, pattern, apply_draft_angle, add_draft_angles, add_lattice_infill, strategic_holes"""
+    
+    if model_analysis:
+        json_msg = f"""Input:
+{json.dumps(design_plan, indent=2)}
 {json.dumps(model_analysis, indent=2)}
 
-Generate specific CAD operations to execute this plan."""
+Output:"""
     else:
-        user_message = f"""Design Plan:
+        json_msg = f"""Input:
 {json.dumps(design_plan, indent=2)}
 
-Model analysis not yet available. Generate operations with best-guess parameters.
-Mark which parameters should be refined after analysis."""
+Output:"""
     
-    result = await call_nemotron(system_prompt, user_message, max_tokens=3072)
+    result = await call_nemotron(json_prompt, json_msg, max_tokens=2048)
+    
+    ops_count = len(result.get("operations", []))
+    if ops_count == 0:
+        print(f"\n⚠️  Phase 2 returned 0 operations!")
+        print(f"📄 Raw response: {result.get('raw_response', str(result))[:800]}")
+        if "error" in result:
+            print(f"❌ Error: {result['error']}\n")
+    else:
+        print(f"✓ Generated {ops_count} operations\n")
+    
     return result
+
+
 
 
 @app.post("/submit-job/")
@@ -348,8 +361,14 @@ async def submit_job(file: UploadFile, text_command: str = Form(...)):
     
     if "error" in operations:
         print(f"❌ Phase 2 failed: {operations['error']}")
+        if "summary" in operations:
+            print(f"📄 Nemotron returned: {operations['summary']}")
     else:
-        print(f"✓ Generated {len(operations.get('operations', []))} operations")
+        ops_count = len(operations.get('operations', []))
+        print(f"✓ Generated {ops_count} operations")
+        if ops_count == 0 and "error" in operations:
+            print(f"⚠️  Warning: {operations.get('error')}")
+            print(f"📄 Raw summary: {operations.get('summary', 'N/A')}")
         for i, op in enumerate(operations.get('operations', [])[:3], 1):
             print(f"  {i}. {op.get('type')} - {op.get('reasoning', 'N/A')[:50]}...")
     
