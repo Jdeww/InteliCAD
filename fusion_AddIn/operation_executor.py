@@ -242,51 +242,59 @@ class OperationExecutor:
     # ADD RIBS  (sketch-based rib using thin extrude)
     # =========================================================================
     def _add_ribs(self, params):
-        thickness_mm = params.get("thickness", 2.0)
+        """Create thin reinforcing ribs - SMALL internal supports, not massive plates"""
+        thickness_mm = params.get("thickness", 1.5)
         thickness_cm = thickness_mm / 10.0
+        height_mm = params.get("height", 10.0) 
+        height_cm = height_mm / 10.0
         pattern = params.get("pattern", "cross_bracing")
 
-        # Get bounding box to size the ribs correctly
+        # Get bounding box
         bbox = self.root.boundingBox
-        x_min, x_max = bbox.minPoint.x, bbox.maxPoint.x
-        y_min, y_max = bbox.minPoint.y, bbox.maxPoint.y
-        z_min, z_max = bbox.minPoint.z, bbox.maxPoint.z
-        z_mid = (z_min + z_max) / 2
+        x_size = bbox.maxPoint.x - bbox.minPoint.x
+        y_size = bbox.maxPoint.y - bbox.minPoint.y
+        z_size = bbox.maxPoint.z - bbox.minPoint.z
+        
+        x_center = (bbox.minPoint.x + bbox.maxPoint.x) / 2
+        y_center = (bbox.minPoint.y + bbox.maxPoint.y) / 2
 
-        # Create sketch on XZ plane
+        # Create sketch on XY plane
         sketches = self.root.sketches
-        xz_plane = self.root.xZConstructionPlane
-        sketch = sketches.add(xz_plane)
-        lines = sketch.sketchCurves.sketchLines
+        xy_plane = self.root.xYConstructionPlane
+        sketch = sketches.add(xy_plane)
+        rects = sketch.sketchCurves.sketchLines
 
-        offset = thickness_cm / 2
+        # Create SMALL ribs (10-20% of part size, not 100%!)
+        rib_length = min(x_size, y_size) * 0.3  # Only 30% of part size
+        half_thick = thickness_cm / 2
+        
+        if pattern == "cross_bracing":
+            # Vertical rib - small rectangle in center
+            p1 = adsk.core.Point3D.create(x_center - half_thick, y_center - rib_length/2, 0)
+            p2 = adsk.core.Point3D.create(x_center + half_thick, y_center - rib_length/2, 0)
+            p3 = adsk.core.Point3D.create(x_center + half_thick, y_center + rib_length/2, 0)
+            p4 = adsk.core.Point3D.create(x_center - half_thick, y_center + rib_length/2, 0)
+            rects.addByTwoPoints(p1, p2)
+            rects.addByTwoPoints(p2, p3)
+            rects.addByTwoPoints(p3, p4)
+            rects.addByTwoPoints(p4, p1)
 
-        if pattern in ("cross_bracing", "parallel"):
-            # Draw a rib rectangle at center of Y
-            p1 = adsk.core.Point3D.create(x_min, -offset, z_min)
-            p2 = adsk.core.Point3D.create(x_max,  offset, z_min)
-            p3 = adsk.core.Point3D.create(x_max,  offset, z_max)
-            p4 = adsk.core.Point3D.create(x_min, -offset, z_max)
-            lines.addByTwoPoints(p1, p2)
-            lines.addByTwoPoints(p2, p3)
-            lines.addByTwoPoints(p3, p4)
-            lines.addByTwoPoints(p4, p1)
-
-        # Extrude the profile
+        # Extrude upward (small height, not full part height!)
         prof = sketch.profiles.item(0) if sketch.profiles.count > 0 else None
         if not prof:
-            return "Rib sketch created but no profile found to extrude"
+            return "Rib sketch created but no profile to extrude"
 
         extrudes = self.root.features.extrudeFeatures
-        dist = adsk.core.ValueInput.createByReal(thickness_cm)
+        distance = adsk.core.ValueInput.createByReal(height_cm)
+        
         inp = extrudes.createInput(
             prof,
-            adsk.fusion.FeatureOperations.JoinFeatureOperation
+            adsk.fusion.FeatureOperations.NewBodyFeatureOperation  # Don't join - create separate body
         )
-        inp.setDistanceExtent(False, dist)
+        inp.setDistanceExtent(False, distance)
         extrudes.add(inp)
 
-        return f"Added {pattern} rib ({thickness_mm}mm thick)"
+        return f"Added small {pattern} rib ({thickness_mm}mm × {height_mm}mm)"
 
     # =========================================================================
     # STRATEGIC HOLES (reduce material)

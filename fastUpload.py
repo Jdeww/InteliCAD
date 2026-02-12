@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, Form # pyright: ignore[reportMissingImports]
+from fastapi import FastAPI, UploadFile, Form
 from fastapi.responses import FileResponse
 import shutil
 import os
@@ -291,22 +291,63 @@ async def phase2_generate_operations(design_plan: dict, model_analysis: dict = N
     
     json_prompt = """You are a JSON generator. Output ONLY the JSON object, nothing else.
 
-Example input: {"goal": "reduce_weight", "target": 30}
-Example output: {"operations": [{"id": "op_001", "type": "shell_body", "params": {"wall_thickness": 2.5}}]}
+CRITICAL: Every operation MUST have complete "params" with actual values!
 
-Available types: shell_body, add_ribs, fillet_edges, fillet_all_edges, mirror, rotate, scale, topology_optimization, run_topology_optimization, add_cross_bracing, pattern, apply_draft_angle, add_draft_angles, add_lattice_infill, strategic_holes"""
+Example for weight reduction:
+{
+  "operations": [
+    {
+      "id": "op_001",
+      "type": "shell_body",
+      "params": {
+        "wall_thickness": 2.5,
+        "inside_offset": true,
+        "faces_to_remove": ["top_face"]
+      },
+      "reasoning": "Hollow out body to reduce mass by 40%"
+    },
+    {
+      "id": "op_002", 
+      "type": "add_ribs",
+      "params": {
+        "thickness": 1.5,
+        "height": 10.0,
+        "pattern": "cross_bracing",
+        "locations": ["interior_walls"]
+      },
+      "reasoning": "Reinforce hollowed structure"
+    },
+    {
+      "id": "op_003",
+      "type": "fillet_all_edges",
+      "params": {
+        "radius": 2.0
+      },
+      "reasoning": "Smooth stress concentrations"
+    }
+  ]
+}
+
+IMPORTANT operation types and their REQUIRED params:
+- shell_body: wall_thickness (number), inside_offset (bool), faces_to_remove (list)
+- add_ribs: thickness (number), height (number), pattern (string), locations (list)
+- fillet_all_edges: radius (number)
+- strategic_holes: hole_diameter (number), pattern (string), count (number)
+
+DO NOT use these (placeholders only): topology_optimization, add_lattice_infill
+PREFER these for weight reduction: shell_body, strategic_holes"""
     
     if model_analysis:
-        json_msg = f"""Input:
+        json_msg = f"""Design plan and model data:
 {json.dumps(design_plan, indent=2)}
 {json.dumps(model_analysis, indent=2)}
 
-Output:"""
+Generate operations JSON with COMPLETE params:"""
     else:
-        json_msg = f"""Input:
+        json_msg = f"""Design plan:
 {json.dumps(design_plan, indent=2)}
 
-Output:"""
+Generate operations JSON with COMPLETE params:"""
     
     # Use fast Llama 3.1 8B for JSON generation (more obedient, no thinking tendency)
     result = await call_nemotron(
