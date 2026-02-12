@@ -5,7 +5,7 @@ import time
 BASE_URL = "http://127.0.0.1:8000"
 
 # Test file path
-file_path = r"C:\Users\jdwil\Documents\Projects\GTC 2026 Golden Ticket\Headphone hanger.f3d"
+file_path = r"Headphone hanger.f3d"
 
 # Complex, high-level design commands
 complex_commands = [

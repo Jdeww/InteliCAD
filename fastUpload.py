@@ -15,10 +15,10 @@ jobs = {}
 # ============================================================================
 # NVIDIA API CONFIGURATION
 # ============================================================================
-NVIDIA_API_KEY = ""  # <-- REPLACE THIS!
+NVIDIA_API_KEY = "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"  # <-- REPLACE THIS!
 # ============================================================================
 
-NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+NVIDIA_API_URL = ""
 
 
 async def call_nemotron(system_prompt: str, user_message: str, max_tokens: int = 3072) -> dict:
