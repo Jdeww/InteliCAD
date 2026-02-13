@@ -10,6 +10,7 @@ import threading
 import time
 import os
 import sys
+import json
 
 # Add this folder to path so we can import sibling modules
 _dir = os.path.dirname(os.path.realpath(__file__))
@@ -21,7 +22,8 @@ if _dir not in sys.path:
 # ============================================================================
 BACKEND_URL = "http://127.0.0.1:8000"
 POLL_INTERVAL = 10  # seconds
-LOG_FILE = os.path.join(os.path.expanduser("~"), "Desktop", "intelicad_log.txt")
+# Log file in the repository folder where backend runs
+LOG_FILE = r"C:\Users\jdwil\Documents\Projects\GTC 2026 Golden Ticket\intelicad_log.txt"
 # ============================================================================
 
 app = None
@@ -61,14 +63,19 @@ def run(context):
         app = adsk.core.Application.get()
         ui = app.userInterface
         
-        # Clear old log and start fresh
+        # Create log directory if it doesn't exist
         try:
+            log_dir = os.path.dirname(LOG_FILE)
+            if log_dir and not os.path.exists(log_dir):
+                os.makedirs(log_dir, exist_ok=True)
+            
+            # Create log file
             with open(LOG_FILE, "w") as f:
                 f.write(f"InteliCAD Log Started: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write("="*70 + "\n\n")
             _log("✓ Log file created")
         except Exception as e:
-            ui.messageBox(f"Failed to create log file:\n{e}")
+            ui.messageBox(f"Failed to create log file:\n{e}\n\nTried: {LOG_FILE}")
             return
         
         # Test imports immediately
@@ -316,17 +323,27 @@ def _do_execution(job_id, job_info, client):
     success_count = 0
 
     for i, op in enumerate(operations, 1):
-        op_type = op.get("type", "unknown")
-        _log(f"\n  [{i}/{len(operations)}] {op_type}")
-        _log(f"    {op.get('reasoning', '')[:70]}")
+        try:
+            op_type = op.get("type", "unknown")
+            params = op.get("params", {})
+            _log(f"\n  [{i}/{len(operations)}] {op_type}")
+            _log(f"    Reasoning: {op.get('reasoning', 'N/A')[:70]}")
+            _log(f"    Params: {json.dumps(params)[:100]}")
+            
+            _log(f"    → Executing...")
+            result = executor.execute(op)
+            _log(f"    → Got result: {result.get('success')}")
 
-        result = executor.execute(op)
+            if result["success"]:
+                _log(f"    ✓ SUCCESS: {result.get('message', 'Done')}")
+                success_count += 1
+            else:
+                _log(f"    ❌ FAILED: {result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            _log(f"    ❌ EXCEPTION during execution: {e}")
+            _log(f"    Traceback: {traceback.format_exc()}")
 
-        if result["success"]:
-            _log(f"    ✓ {result.get('message', 'Done')}")
-            success_count += 1
-        else:
-            _log(f"    ⚠️  {result.get('error', 'Failed')} - continuing...")
 
     # Save output to the job folder
     _log(f"\n💾 Saving modified file...")

@@ -86,7 +86,7 @@ def _parse_nemotron_json(raw: str) -> dict:
     
     # 6. Try json5 (handles unquoted keys, trailing commas, etc.)
     try:
-        import json5
+        import json5 # pyright: ignore[reportMissingImports]
         return json5.loads(text)
     except ImportError:
         print("Tip: pip install json5 for better tolerance")
