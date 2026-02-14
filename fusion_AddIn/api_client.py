@@ -63,6 +63,17 @@ class APIClient:
             return {"status": "error", "message": f"Upload failed: {str(e)}"}
 
     # ------------------------------------------------------------------
+    def retry_failed_operations(self, job_id, execution_results):
+        """Request Phase 3 retry operations for failed operations"""
+        try:
+            return self._post_json(
+                f"/retry-failed/{job_id}",
+                {"execution_results": execution_results}
+            )
+        except Exception as e:
+            return {"status": "error", "message": str(e), "retry_operations": []}
+
+    # ------------------------------------------------------------------
     def _get(self, path):
         """Simple GET request"""
         try:

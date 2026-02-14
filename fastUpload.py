@@ -86,7 +86,7 @@ def _parse_nemotron_json(raw: str) -> dict:
     
     # 6. Try json5 (handles unquoted keys, trailing commas, etc.)
     try:
-        import json5 # pyright: ignore[reportMissingImports]
+        import json5
         return json5.loads(text)
     except ImportError:
         print("Tip: pip install json5 for better tolerance")
@@ -208,18 +208,22 @@ You MUST return a JSON object with these fields:
 {
   "design_intent": {
     "primary_goal": "reduce_weight | increase_strength | optimize_manufacturing | improve_function",
+    "part_type": "structural_bracket | hanger | enclosure | functional_tool | decorative | mechanical_component",
+    "use_case_description": "Brief description of what this part does and how it's used",
+    "load_bearing": true/false,
+    "exposure_conditions": "indoor | outdoor | high_temperature | wet_environment | clean_room",
     "quantitative_targets": {
       "weight_reduction_percent": 30,
       "strength_retention_percent": 85,
       "cost_reduction_percent": 20
     },
     "constraints": ["maintain_mounting_holes", "no_sharp_edges", "max_height_50mm"],
-    "use_case": "bracket for 50kg load",
     "material_assumed": "PLA" or "ABS" or "Steel" etc.
   },
   "modification_strategy": {
-    "approach": "shell_and_reinforce | lattice_infill | topology_optimization | hole_pattern",
-    "reasoning": "Detailed explanation of why this approach fits the goals",
+    "approach": "shell_and_reinforce | lattice_infill | topology_optimization | hole_pattern | minimal_intervention",
+    "reasoning": "Detailed explanation of why this approach fits the goals AND use case",
+    "operations_to_avoid": ["ventilation - not needed for this use case", "strategic_holes - would weaken load-bearing structure"],
     "risk_factors": ["may_reduce_strength_locally", "requires_support_material"],
     "estimated_iterations": 2
   },
@@ -250,7 +254,29 @@ You MUST return a JSON object with these fields:
   }
 }
 
-CRITICAL: Always output valid JSON. Think through the engineering tradeoffs carefully."""
+## CRITICAL CONTEXT-AWARENESS RULES:
+
+**For LOAD-BEARING parts (brackets, hangers, structural components):**
+- AVOID: ventilation, strategic_holes, excessive hollowing
+- PREFER: selective reinforcement, minimal shelling with thick walls (5-8mm)
+- REASONING: Strength is paramount, weight reduction is secondary
+
+**For ENCLOSURES/HOUSINGS:**
+- CONSIDER: ventilation (if electronics inside need cooling)
+- PREFER: shelling with moderate walls (2-4mm), ribs for rigidity
+- REASONING: Balance between protection and weight
+
+**For DECORATIVE/NON-STRUCTURAL parts:**
+- PREFER: aggressive hollowing, lattice patterns, artistic hole patterns
+- AVOID: over-engineering with ribs
+- REASONING: Weight reduction is primary goal
+
+**For HANGERS/CLIPS (like headphone hangers):**
+- AVOID: strategic_holes, ventilation (serve no purpose, only weaken)
+- PREFER: selective shelling, reinforce at stress points (clip area, mounting point)
+- REASONING: Must maintain grip strength and mounting strength
+
+CRITICAL: Always output valid JSON. Think through the engineering tradeoffs AND use case appropriateness carefully."""
 
     user_message = f"Design Intent: {user_command}\n\nAnalyze this command and create a detailed modification strategy."
     
@@ -292,26 +318,40 @@ async def phase2_generate_operations(design_plan: dict, model_analysis: dict = N
     json_prompt = """You are a JSON generator. Output ONLY the JSON object, nothing else.
 
 CRITICAL: Every operation MUST have complete "params" with actual values!
+CRITICAL: Use the model analysis data to calculate SAFE parameter values!
+CRITICAL: RESPECT the "operations_to_avoid" from the design strategy!
 
-Example for weight reduction:
+PARAMETER SAFETY RULES:
+- shell_body wall_thickness: MIN 10% of smallest dimension, typically 3-5mm for small parts (5-8mm for load-bearing)
+- fillet_all_edges radius: MAX 2% of smallest dimension, typically 0.5-1.5mm  
+- add_ribs height: MAX 20% of part height
+- strategic_holes diameter: MAX 15% of smallest dimension
+
+USE CASE APPROPRIATENESS:
+- Load-bearing parts (brackets, hangers, clips): AVOID strategic_holes, ventilation (they only weaken!)
+- Enclosures: OK to use ventilation if cooling needed
+- Decorative parts: OK to use strategic_holes for aesthetics
+- Headphone hangers/clips: ONLY use shell_body + add_ribs, NO holes!
+
+Example for weight reduction on a HANGER/CLIP:
 {
   "operations": [
     {
       "id": "op_001",
       "type": "shell_body",
       "params": {
-        "wall_thickness": 2.5,
+        "wall_thickness": 6.0,
         "inside_offset": true,
         "faces_to_remove": ["top_face"]
       },
-      "reasoning": "Hollow out body to reduce mass by 40%"
+      "reasoning": "Hollow out body while maintaining clip strength"
     },
     {
       "id": "op_002", 
       "type": "add_ribs",
       "params": {
-        "thickness": 1.5,
-        "height": 10.0,
+        "thickness": 2.0,
+        "height": 8.0,
         "pattern": "cross_bracing",
         "locations": ["interior_walls"]
       },
@@ -321,7 +361,7 @@ Example for weight reduction:
       "id": "op_003",
       "type": "fillet_all_edges",
       "params": {
-        "radius": 2.0
+        "radius": 1.0
       },
       "reasoning": "Smooth stress concentrations"
     }
@@ -329,20 +369,52 @@ Example for weight reduction:
 }
 
 IMPORTANT operation types and their REQUIRED params:
-- shell_body: wall_thickness (number), inside_offset (bool), faces_to_remove (list)
-- add_ribs: thickness (number), height (number), pattern (string), locations (list)
-- fillet_all_edges: radius (number)
-- strategic_holes: hole_diameter (number), pattern (string), count (number)
+- shell_body: wall_thickness (number 3-8mm SAFE), inside_offset (bool), faces_to_remove (list)
+- add_ribs: thickness (number 1-3mm), height (number 5-15mm), pattern (string), locations (list)
 
-DO NOT use these (placeholders only): topology_optimization, add_lattice_infill
-PREFER these for weight reduction: shell_body, strategic_holes"""
+STRICTLY FORBIDDEN operations (will cause errors):
+- fillet_all_edges: Causes geometry errors, DO NOT USE
+- strategic_holes: ONLY for decorative parts, NEVER for load-bearing parts like hangers, brackets, clips
+- ventilation: ONLY for electronics enclosures that need cooling, NEVER for hangers/brackets
+- topology_optimization: Placeholder only
+- lattice_infill: Placeholder only
+
+FOR HANGERS, CLIPS, BRACKETS (load-bearing parts):
+ONLY ALLOWED: shell_body, add_ribs
+FORBIDDEN: strategic_holes, ventilation, fillet_all_edges
+
+Generate ONLY 2 operations: shell_body + add_ribs"""
     
     if model_analysis:
+        # Extract key dimensions for the AI to use
+        bounding_box = model_analysis.get("bounding_box", {})
+        dimensions = f"Part size: {bounding_box.get('length', 'N/A')}mm × {bounding_box.get('width', 'N/A')}mm × {bounding_box.get('height', 'N/A')}mm"
+        
+        # Extract operations to avoid from design strategy
+        operations_to_avoid = design_plan.get("modification_strategy", {}).get("operations_to_avoid", [])
+        avoid_note = ""
+        if operations_to_avoid:
+            avoid_note = f"\nCRITICAL - DO NOT USE THESE OPERATIONS:\n{json.dumps(operations_to_avoid, indent=2)}\n"
+        
+        # Extract part type for context
+        part_type = design_plan.get("design_intent", {}).get("part_type", "unknown")
+        use_case = design_plan.get("design_intent", {}).get("use_case_description", "")
+        context_note = f"\nPART TYPE: {part_type}\nUSE CASE: {use_case}\n"
+        
         json_msg = f"""Design plan and model data:
 {json.dumps(design_plan, indent=2)}
 {json.dumps(model_analysis, indent=2)}
 
-Generate operations JSON with COMPLETE params:"""
+{dimensions}
+{context_note}
+{avoid_note}
+
+IMPORTANT: Calculate safe parameters based on part size above!
+- For shell_body: wall_thickness should be at least 10% of smallest dimension (minimum 5mm for load-bearing parts)
+- For fillet_all_edges: radius should be small (0.5-1.5mm) to avoid complex geometry
+- ONLY use operations that make sense for this specific use case!
+
+Generate operations JSON with SAFE, COMPLETE, APPROPRIATE params:"""
     else:
         json_msg = f"""Design plan:
 {json.dumps(design_plan, indent=2)}
@@ -357,6 +429,38 @@ Generate operations JSON with COMPLETE params:"""
         model="meta/llama-3.1-8b-instruct"
     )
     
+    # POST-GENERATION FILTER: Remove operations that don't make sense for this use case
+    if model_analysis:
+        part_type = design_plan.get("design_intent", {}).get("part_type", "").lower()
+        operations = result.get("operations", [])
+        filtered_ops = []
+        removed_ops = []
+        
+        for op in operations:
+            op_type = op.get("type", "")
+            
+            # Rules for load-bearing parts (hangers, brackets, clips)
+            if any(keyword in part_type for keyword in ["hanger", "bracket", "clip", "mount", "hook"]):
+                if op_type in ["strategic_holes", "ventilation", "fillet_all_edges"]:
+                    removed_ops.append(f"{op_type} (inappropriate for load-bearing {part_type})")
+                    continue
+            
+            # Rules for enclosures
+            if "enclosure" in part_type or "housing" in part_type:
+                # Ventilation OK only if electronics mentioned
+                if op_type == "ventilation":
+                    use_case = design_plan.get("design_intent", {}).get("use_case_description", "").lower()
+                    if "electronic" not in use_case and "cooling" not in use_case:
+                        removed_ops.append(f"{op_type} (no cooling needed)")
+                        continue
+            
+            filtered_ops.append(op)
+        
+        result["operations"] = filtered_ops
+        
+        if removed_ops:
+            print(f"   ⚠️  Filtered out inappropriate operations: {', '.join(removed_ops)}")
+    
     ops_count = len(result.get("operations", []))
     if ops_count == 0:
         print(f"\n⚠️  Phase 2 returned 0 operations!")
@@ -367,6 +471,159 @@ Generate operations JSON with COMPLETE params:"""
         print(f"✓ Generated {ops_count} operations\n")
     
     return result
+
+
+async def phase3_retry_failed_operations(
+    original_command: str,
+    design_plan: dict,
+    model_analysis: dict,
+    execution_results: list
+) -> dict:
+    """
+    PHASE 3: Intelligent Parameter Adjustment
+    
+    For FAILED operations: Retry the SAME operation with safer/adjusted parameters
+    For SUCCESSFUL operations: Optionally make them more aggressive if safe to do so
+    
+    NEVER switch to different operation types - only adjust parameters!
+    """
+    
+    print("🔄 PHASE 3: Analyzing execution results and adjusting parameters...")
+    
+    # Separate successful and failed operations
+    succeeded = [r for r in execution_results if r.get('success')]
+    failed = [r for r in execution_results if not r.get('success')]
+    
+    if not failed:
+        print("   ✓ All operations succeeded - checking if we can be more aggressive...")
+        # Could optionally make successful operations more aggressive here
+        # For now, just return empty
+        return {"operations": []}
+    
+    print(f"   Found {len(failed)} failed operation(s) to retry with adjusted parameters")
+    
+    # Build context for parameter adjustment
+    retry_analysis = []
+    for f in failed:
+        op = f.get('operation', {})
+        error = f.get('error', '')
+        
+        retry_analysis.append({
+            "operation_type": op.get('type'),
+            "original_params": op.get('params'),
+            "error_message": error,
+            "original_reasoning": op.get('reasoning')
+        })
+    
+    # STEP 1: Analyze failures and determine parameter adjustments
+    print("🧠 Phase 3 Step 1: Analyzing failures and planning parameter adjustments...")
+    
+    thinking_prompt = """You are a CAD expert analyzing failed operations to determine better parameters.
+
+CRITICAL RULES:
+- NEVER switch to a different operation type
+- ONLY adjust parameters of the SAME operation
+- If an operation is fundamentally impossible, recommend skipping it entirely
+- Focus on making parameters SAFER (thicker walls, smaller radii, fewer holes, etc.)"""
+    
+    thinking_msg = f"""Original Goal: {original_command}
+
+Part Information:
+{json.dumps(model_analysis, indent=2)}
+
+FAILED Operations Analysis:
+{json.dumps(retry_analysis, indent=2)}
+
+For EACH failed operation, think through:
+1. WHY did it fail? (analyze the error message)
+2. Can this SAME operation work with different parameters?
+3. If YES: What parameter changes would make it succeed? (be specific!)
+4. If NO: Recommend skipping this operation entirely
+
+Common failure patterns and fixes:
+- "topology change" error on shell_body → Increase wall_thickness (try 2x thicker)
+- "fillet at corner" error → Decrease fillet radius (try 50% smaller)
+- "extrusion outside boundary" for holes → Skip this operation (geometry changed)
+- "complex geometry" → Simplify parameters or skip
+
+Think through each operation separately."""
+    
+    thinking_result = await call_nemotron(
+        thinking_prompt,
+        thinking_msg,
+        max_tokens=1500,
+        model="nvidia/llama-3.3-nemotron-super-49b-v1.5"
+    )
+    print(f"✓ Analysis complete")
+    
+    # STEP 2: Generate adjusted parameters for SAME operations
+    print("📝 Phase 3 Step 2: Generating adjusted parameters...")
+    
+    json_prompt = """You are a JSON generator. Output ONLY valid JSON with parameter adjustments.
+
+CRITICAL RULES:
+1. NEVER change the operation type - only adjust parameters
+2. If an operation cannot work, return empty operations array
+3. Use SAFER parameters than the original (thicker walls, smaller radii, etc.)
+
+Example for failed shell_body:
+Original: {"type": "shell_body", "params": {"wall_thickness": 3.5}}
+Error: "topology change"
+Adjusted:
+{
+  "operations": [
+    {
+      "id": "op_retry_001",
+      "type": "shell_body",
+      "params": {
+        "wall_thickness": 7.0,
+        "inside_offset": true,
+        "faces_to_remove": ["top_face"]
+      },
+      "reasoning": "Doubled wall thickness from 3.5mm to 7.0mm to avoid topology change error"
+    }
+  ]
+}
+
+Example for failed fillet_all_edges:
+Original: {"type": "fillet_all_edges", "params": {"radius": 1.0}}
+Error: "edges meet at corner"
+Adjusted:
+{
+  "operations": []
+}
+Reasoning: Fillet is fundamentally incompatible with this geometry - skip it
+
+PARAMETER ADJUSTMENT GUIDELINES:
+- shell_body: If failed, increase wall_thickness by 50-100%
+- fillet_all_edges: If failed due to geometry, SKIP (return empty)
+- strategic_holes: If failed due to boundary, SKIP (geometry already changed)
+- add_ribs: If failed, reduce height or thickness by 30-50%
+
+Output ONLY the JSON with adjusted parameters for the SAME operations:"""
+    
+    json_msg = f"""Failed Operations:
+{json.dumps(retry_analysis, indent=2)}
+
+Part size: {model_analysis.get('bounding_box', {})}
+
+Generate adjusted parameters for the SAME operations (or empty array if operation should be skipped):"""
+    
+    result = await call_nemotron(
+        json_prompt,
+        json_msg,
+        max_tokens=1500,
+        model="meta/llama-3.1-8b-instruct"
+    )
+    
+    retry_count = len(result.get("operations", []))
+    if retry_count > 0:
+        print(f"✓ Generated {retry_count} retry operation(s) with adjusted parameters")
+    else:
+        print(f"   → All failed operations deemed unrecoverable - skipping retries")
+    
+    return result
+
 
 
 
@@ -550,6 +807,49 @@ async def complete_job(job_id: str, file: UploadFile):
     print(f"✓ Job {job_id} completed successfully")
     
     return {"status": "success"}
+
+
+@app.post("/retry-failed/{job_id}")
+async def retry_failed_operations(job_id: str, execution_results: dict):
+    """
+    Phase 3: Generate alternative operations for failed ones
+    
+    Request body:
+    {
+        "execution_results": [
+            {"operation": {...}, "success": true/false, "error": "..."},
+            ...
+        ]
+    }
+    """
+    if job_id not in jobs:
+        return {"error": "Job not found"}
+    
+    job = jobs[job_id]
+    results = execution_results.get("execution_results", [])
+    
+    if not results:
+        return {"error": "No execution results provided"}
+    
+    # Run Phase 3
+    retry_ops = await phase3_retry_failed_operations(
+        original_command=job.get("text_command", ""),
+        design_plan=job.get("design_intent", {}),
+        model_analysis=job.get("model_analysis", {}),
+        execution_results=results
+    )
+    
+    # Store retry operations
+    job["retry_operations"] = retry_ops
+    job["phase"] = "retry_ready"
+    
+    print(f"✓ Job {job_id} has {len(retry_ops.get('operations', []))} retry operations ready")
+    
+    return {
+        "status": "success",
+        "retry_operations": retry_ops.get("operations", []),
+        "count": len(retry_ops.get("operations", []))
+    }
 
 
 @app.get("/job-status/{job_id}")

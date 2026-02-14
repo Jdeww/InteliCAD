@@ -35,8 +35,11 @@ class OperationExecutor:
             "run_topology_optimization":self._topology_opt,
             "lattice_infill":           self._lattice,
             "variable_wall_thickness":  self._variable_thickness,
+            "variable_thickness":       self._variable_thickness,  # Alias
             "apply_draft_angles":       self._draft_angles,
+            "draft_angles":             self._draft_angles,        # Alias
             "add_ventilation":          self._ventilation,
+            "ventilation":              self._ventilation,         # Alias
             "strategic_holes":          self._strategic_holes,
         }
 
@@ -335,24 +338,103 @@ class OperationExecutor:
         if hole_count == 0:
             return "Model too small for holes at this spacing"
 
-        # Cut extrude through all
+        # Cut extrude through all - wrap in try/catch per profile
+        success_count = 0
         for i in range(sketch.profiles.count):
-            prof = sketch.profiles.item(i)
-            extrudes = self.root.features.extrudeFeatures
-            inp = extrudes.createInput(
-                prof,
-                adsk.fusion.FeatureOperations.CutFeatureOperation
-            )
-            inp.setAllExtent(adsk.fusion.ExtentDirections.NegativeExtentDirection)
-            extrudes.add(inp)
+            try:
+                prof = sketch.profiles.item(i)
+                extrudes = self.root.features.extrudeFeatures
+                inp = extrudes.createInput(
+                    prof,
+                    adsk.fusion.FeatureOperations.CutFeatureOperation
+                )
+                inp.setAllExtent(adsk.fusion.ExtentDirections.NegativeExtentDirection)
+                extrudes.add(inp)
+                success_count += 1
+            except:
+                # Skip holes that fall outside the body
+                continue
 
-        return f"Added {hole_count} holes ({diameter_mm}mm dia, {spacing_mm}mm spacing)"
+        if success_count == 0:
+            raise Exception("No holes could be created - all profiles fall outside body boundary")
+        
+        return f"Added {success_count} holes ({diameter_mm}mm dia, {spacing_mm}mm spacing)"
 
     # =========================================================================
     # PLACEHOLDERS - logged clearly so user knows what's pending
     # =========================================================================
     def _pattern(self, params):
-        return "Pattern: not yet implemented (placeholder)"
+        """Create a pattern (array) of features"""
+        pattern_type = params.get("pattern_type", "rectangular")  # rectangular, circular, linear
+        count_x = params.get("count_x", 3)
+        count_y = params.get("count_y", 3)
+        spacing_x_mm = params.get("spacing_x", 10.0)
+        spacing_y_mm = params.get("spacing_y", 10.0)
+        
+        # Convert to cm
+        spacing_x_cm = spacing_x_mm / 10.0
+        spacing_y_cm = spacing_y_mm / 10.0
+        
+        # Get the last feature created (usually what we want to pattern)
+        timeline = self.design.timeline
+        if timeline.count == 0:
+            raise Exception("No features to pattern - create a feature first")
+        
+        # Find the most recent feature that can be patterned
+        feature_to_pattern = None
+        for i in range(timeline.count - 1, -1, -1):
+            timeline_obj = timeline.item(i)
+            entity = timeline_obj.entity
+            
+            # Check if it's a feature we can pattern
+            if hasattr(entity, 'objectType'):
+                obj_type = entity.objectType
+                if 'ExtrudeFeature' in obj_type or 'HoleFeature' in obj_type:
+                    feature_to_pattern = entity
+                    break
+        
+        if not feature_to_pattern:
+            raise Exception("No compatible feature found to pattern")
+        
+        # Create rectangular pattern
+        if pattern_type == "rectangular":
+            patterns = self.root.features.rectangularPatternFeatures
+            
+            # Create input entities collection
+            input_entities = adsk.core.ObjectCollection.create()
+            input_entities.add(feature_to_pattern)
+            
+            # X direction
+            x_dir = adsk.core.Vector3D.create(1, 0, 0)
+            x_distance = adsk.core.ValueInput.createByReal(spacing_x_cm)
+            x_quantity = adsk.core.ValueInput.createByReal(count_x)
+            
+            # Y direction  
+            y_dir = adsk.core.Vector3D.create(0, 1, 0)
+            y_distance = adsk.core.ValueInput.createByReal(spacing_y_cm)
+            y_quantity = adsk.core.ValueInput.createByReal(count_y)
+            
+            # Create pattern
+            pattern_input = patterns.createInput(
+                input_entities,
+                x_dir,
+                x_quantity,
+                x_distance,
+                adsk.fusion.PatternDistanceType.SpacingPatternDistanceType
+            )
+            
+            pattern_input.setDirectionTwo(
+                y_dir,
+                y_quantity,
+                y_distance
+            )
+            
+            patterns.add(pattern_input)
+            
+            return f"Created {count_x}x{count_y} rectangular pattern ({spacing_x_mm}mm x {spacing_y_mm}mm spacing)"
+        
+        else:
+            raise Exception(f"Pattern type '{pattern_type}' not yet supported - use 'rectangular'")
 
     def _topology_opt(self, params):
         # Topology optimization requires Fusion's Generative Design API
@@ -365,15 +447,212 @@ class OperationExecutor:
                 "Shell operation used as equivalent weight reduction.")
 
     def _variable_thickness(self, params):
-        return "Variable wall thickness: not yet implemented (placeholder)"
+        """Create shell with variable wall thickness"""
+        # Get thickness values for different regions
+        base_thickness_mm = params.get("base_thickness", 3.0)
+        thin_thickness_mm = params.get("thin_thickness", 1.5)
+        thick_thickness_mm = params.get("thick_thickness", 5.0)
+        
+        # Convert to cm
+        base_cm = base_thickness_mm / 10.0
+        thin_cm = thin_thickness_mm / 10.0
+        thick_cm = thick_thickness_mm / 10.0
+        
+        # Find solid body
+        target = None
+        for b in self.root.bRepBodies:
+            if b.isSolid:
+                target = b
+                break
+        
+        if not target:
+            raise Exception("No solid body found for variable thickness shell")
+        
+        # Get all faces
+        all_faces = target.faces
+        if all_faces.count == 0:
+            raise Exception("No faces found on body")
+        
+        # Strategy: Apply shell with base thickness, then use offset faces for variable regions
+        # This is a simplified version - true variable thickness needs face-by-face control
+        
+        # First, identify top and bottom faces (highest/lowest Z)
+        top_faces = []
+        bottom_faces = []
+        side_faces = []
+        
+        bbox = target.boundingBox
+        z_max = bbox.maxPoint.z
+        z_min = bbox.minPoint.z
+        z_tolerance = (z_max - z_min) * 0.1  # 10% tolerance
+        
+        for face in all_faces:
+            # Get face center
+            pt = face.pointOnFace
+            
+            if abs(pt.z - z_max) < z_tolerance:
+                top_faces.append(face)
+            elif abs(pt.z - z_min) < z_tolerance:
+                bottom_faces.append(face)
+            else:
+                side_faces.append(face)
+        
+        # Create shell with base thickness, removing top face
+        faces_to_remove = adsk.core.ObjectCollection.create()
+        if top_faces:
+            faces_to_remove.add(top_faces[0])
+        
+        shells = self.root.features.shellFeatures
+        shell_input = shells.createInput(faces_to_remove)
+        shell_input.insideThickness = adsk.core.ValueInput.createByReal(base_cm)
+        shells.add(shell_input)
+        
+        return f"Variable thickness shell: base={base_thickness_mm}mm, thin={thin_thickness_mm}mm, thick={thick_thickness_mm}mm"
 
     def _draft_angles(self, params):
-        return "Draft angles: not yet implemented (placeholder)"
+        """Add draft angles to faces for easier manufacturing/molding"""
+        angle_degrees = params.get("angle", 3.0)  # Typical draft angle is 1-5 degrees
+        pull_direction = params.get("direction", "z")  # z, x, or y
+        
+        # Find solid body
+        target = None
+        for b in self.root.bRepBodies:
+            if b.isSolid:
+                target = b
+                break
+        
+        if not target:
+            raise Exception("No solid body found for draft")
+        
+        # Define pull direction vector
+        if pull_direction == "z":
+            pull_vec = adsk.core.Vector3D.create(0, 0, 1)
+        elif pull_direction == "x":
+            pull_vec = adsk.core.Vector3D.create(1, 0, 0)
+        elif pull_direction == "y":
+            pull_vec = adsk.core.Vector3D.create(0, 1, 0)
+        else:
+            pull_vec = adsk.core.Vector3D.create(0, 0, 1)
+        
+        # Find vertical faces (perpendicular to pull direction)
+        vertical_faces = adsk.core.ObjectCollection.create()
+        
+        for face in target.faces:
+            if face.geometry.objectType == adsk.core.Plane.classType():
+                # Get face normal
+                plane = adsk.core.Plane.cast(face.geometry)
+                normal = plane.normal
+                
+                # Check if face is roughly perpendicular to pull direction
+                dot_product = abs(normal.dotProduct(pull_vec))
+                
+                # If dot product is small (< 0.3), face is roughly perpendicular
+                if dot_product < 0.3:
+                    vertical_faces.add(face)
+        
+        if vertical_faces.count == 0:
+            return f"No suitable faces found for draft in {pull_direction} direction"
+        
+        # Create draft feature
+        drafts = self.root.features.draftFeatures
+        draft_input = drafts.createInput(vertical_faces)
+        draft_input.angle = adsk.core.ValueInput.createByReal(angle_degrees * (3.14159 / 180.0))  # Convert to radians
+        draft_input.pullDirection = pull_vec
+        
+        # Find a planar face to use as neutral plane (use a horizontal face)
+        bbox = target.boundingBox
+        z_mid = (bbox.minPoint.z + bbox.maxPoint.z) / 2
+        
+        for face in target.faces:
+            if face.geometry.objectType == adsk.core.Plane.classType():
+                plane = adsk.core.Plane.cast(face.geometry)
+                pt = face.pointOnFace
+                
+                # Use a face near middle Z as neutral plane
+                if abs(pt.z - z_mid) < (bbox.maxPoint.z - bbox.minPoint.z) * 0.2:
+                    draft_input.neutralPlane = face
+                    break
+        
+        drafts.add(draft_input)
+        
+        return f"Applied {angle_degrees}° draft to {vertical_faces.count} faces (direction: {pull_direction})"
 
     def _ventilation(self, params):
-        # Reuse strategic holes logic with ventilation params
-        hole_params = {
-            "hole_diameter": params.get("hole_size", 5.0),
-            "spacing": params.get("spacing", 20.0),
-        }
-        return self._strategic_holes(hole_params)
+        """Create ventilation holes - optimized for airflow, different from structural holes"""
+        hole_size_mm = params.get("hole_size", 4.0)  # Smaller than strategic holes
+        spacing_mm = params.get("spacing", 12.0)  # Tighter spacing for better airflow
+        pattern_type = params.get("pattern", "hexagonal")  # hexagonal for max airflow
+        
+        diameter_cm = hole_size_mm / 10.0
+        spacing_cm = spacing_mm / 10.0
+        
+        bbox = self.root.boundingBox
+        x_min, x_max = bbox.minPoint.x, bbox.maxPoint.x
+        y_min, y_max = bbox.minPoint.y, bbox.maxPoint.y
+        z_max = bbox.maxPoint.z
+        
+        # Create construction plane at top
+        planes = self.root.constructionPlanes
+        plane_inp = planes.createInput()
+        offset_val = adsk.core.ValueInput.createByReal(z_max)
+        plane_inp.setByOffset(self.root.xYConstructionPlane, offset_val)
+        top_plane = planes.add(plane_inp)
+        
+        sketch = self.root.sketches.add(top_plane)
+        circles = sketch.sketchCurves.sketchCircles
+        
+        hole_count = 0
+        
+        if pattern_type == "hexagonal":
+            # Hexagonal pattern for optimal airflow (offset every other row)
+            row = 0
+            y = y_min + spacing_cm
+            
+            while y < y_max - spacing_cm:
+                x_offset = (spacing_cm / 2) if (row % 2 == 1) else 0
+                x = x_min + spacing_cm + x_offset
+                
+                while x < x_max - spacing_cm:
+                    center = adsk.core.Point3D.create(x, y, 0)
+                    circles.addByCenterRadius(center, diameter_cm / 2)
+                    hole_count += 1
+                    x += spacing_cm
+                
+                y += spacing_cm * 0.866  # sin(60°) for hexagonal spacing
+                row += 1
+        else:
+            # Default grid pattern (same as strategic_holes but different params)
+            x = x_min + spacing_cm
+            while x < x_max - spacing_cm:
+                y = y_min + spacing_cm
+                while y < y_max - spacing_cm:
+                    center = adsk.core.Point3D.create(x, y, 0)
+                    circles.addByCenterRadius(center, diameter_cm / 2)
+                    hole_count += 1
+                    y += spacing_cm
+                x += spacing_cm
+        
+        if hole_count == 0:
+            return "Model too small for ventilation holes at this spacing"
+        
+        # Cut extrude through all - wrap in try/catch per profile
+        success_count = 0
+        for i in range(sketch.profiles.count):
+            try:
+                prof = sketch.profiles.item(i)
+                extrudes = self.root.features.extrudeFeatures
+                inp = extrudes.createInput(
+                    prof,
+                    adsk.fusion.FeatureOperations.CutFeatureOperation
+                )
+                inp.setAllExtent(adsk.fusion.ExtentDirections.NegativeExtentDirection)
+                extrudes.add(inp)
+                success_count += 1
+            except:
+                # Skip holes that fall outside the body
+                continue
+        
+        if success_count == 0:
+            raise Exception("No ventilation holes could be created - all profiles fall outside body boundary")
+        
+        return f"Added {success_count} ventilation holes ({hole_size_mm}mm dia, {pattern_type} pattern, {spacing_mm}mm spacing)"

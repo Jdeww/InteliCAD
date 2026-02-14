@@ -1,0 +1,219 @@
+InteliCAD Log Started: 2026-02-14 14:56:44
+======================================================================
+
+[14:56:44] V Log file created
+[14:56:44] Testing imports...
+[14:56:44] V All modules imported successfully
+[14:56:44] Creating polling thread...
+[14:56:44] V Thread created, starting...
+[14:56:44] Starting polling loop...
+[14:56:44] V API client created for http://127.0.0.1:8000
+[14:56:44] Testing initial poll request...
+[14:56:44] V Poll successful, got: dict_keys(['awaiting_analysis', 'ready_for_execution'])
+[14:56:44] V Polling loop ready - checking every 10s
+[14:56:44] 
+[Poll #1] Checking for jobs...
+[14:56:44] V Thread is alive and running
+[14:56:54] 
+[Poll #2] Checking for jobs...
+[14:57:04] 
+[Poll #3] Checking for jobs...
+[14:57:14] 
+[Poll #4] Checking for jobs...
+[14:57:24] 
+[Poll #5] Checking for jobs...
+[14:57:34] 
+[Poll #6] Checking for jobs...
+[14:57:44] 
+[Poll #7] Checking for jobs...
+[14:57:54] 
+[Poll #8] Checking for jobs...
+[14:58:04] 
+[Poll #9] Checking for jobs...
+[14:58:04] Found 1 awaiting analysis, 0 ready to execute
+[14:58:04] Scheduling analysis for 4ea016c5...
+[14:58:04] Executing on background thread (may have API limitations)...
+[14:58:04] 
+======================================================================
+[14:58:04] ANALYSIS: 4ea016c5...
+[14:58:04]    Command: 'Make this lighter without compromising structural integrity'
+[14:58:04] ======================================================================
+[14:58:04] V Using active design: Headphone hanger
+[14:58:04] Analyzing model...
+[14:58:04]    Mass:    555.52g
+[14:58:04]    Volume:  70767244.77cm³
+[14:58:04]    Bodies:  1
+[14:58:04]    Material:Steel
+[14:58:04] Sending analysis to backend...
+[14:58:24] V 2 refined operations received from Nemotron
+[14:58:24] Execution completed
+[14:58:34] 
+[Poll #10] Checking for jobs...
+[14:58:34] Found 1 awaiting analysis, 1 ready to execute
+[14:58:34] Scheduling analysis for 83805f12...
+[14:58:34] Executing on background thread (may have API limitations)...
+[14:58:34] 
+======================================================================
+[14:58:34] ANALYSIS: 83805f12...
+[14:58:34]    Command: 'Reduce material usage by 40% while maintaining strength for a 20kg load'
+[14:58:34] ======================================================================
+[14:58:34] V Using active design: Headphone hanger
+[14:58:34] Analyzing model...
+[14:58:34]    Mass:    555.52g
+[14:58:34]    Volume:  70767244.77cm³
+[14:58:34]    Bodies:  1
+[14:58:34]    Material:Steel
+[14:58:34] Sending analysis to backend...
+[14:58:56] V 2 refined operations received from Nemotron
+[14:58:56] Execution completed
+[14:58:56] Scheduling execution for 4ea016c5...
+[14:58:56] Executing on background thread (may have API limitations)...
+[14:58:56] 
+======================================================================
+[14:58:56] EXECUTION: 4ea016c5...
+[14:58:56]    Command: 'Make this lighter without compromising structural integrity'
+[14:58:56]    CODE VERSION: 2025-02-14-v3-DETAILED-LOGGING
+[14:58:56] ======================================================================
+[14:58:56] V Using active design: Headphone hanger
+[14:58:56] 
+DEBUG: About to loop through 2 operations
+[14:58:56]    Operations list type: <class 'list'>
+[14:58:56]    Operations content: [{'id': 'op_001', 'type': 'shell_body', 'params': {'wall_thickness': 5.0, 'inside_offset': True, 'faces_to_remove': ['top_face']}, 'reasoning': 'Hollow out body while maintaining clip strength'}]
+[14:58:56] 
+  [1/2] shell_body
+[14:58:56]     Reasoning: Hollow out body while maintaining clip strength
+[14:58:56]     Params: {"wall_thickness": 5.0, "inside_offset": true, "faces_to_remove": ["top_face"]}
+[14:58:57]     X FAILED 3 : Shell2 / Compute Failed // ASM_LOP_TWK_TOPOL_CHANGE -   The operation would cause a large topology change.
+    Try adjusting the values or changing the input geometry.
+[14:58:57] 
+  [2/2] add_ribs
+[14:58:57]     Reasoning: Reinforce hollowed structure
+[14:58:57]     Params: {"thickness": 1.5, "height": 6.0, "pattern": "cross_bracing", "locations": ["interior_walls"]}
+[14:58:57]     V SUCCESS Added small cross_bracing rib (1.5mm × 6.0mm)
+[14:58:57] 
+EXECUTION SUMMARY:
+[14:58:57]    Total operations: 2
+[14:58:57]    Succeeded: 1
+[14:58:57]    Failed: 1
+[14:58:57] 
+>> PHASE 3: Requesting alternatives for 1 failed operation(s)...
+[14:59:20]    V Received 1 alternative operation(s)
+[14:59:20] 
+>> EXECUTING RETRY OPERATIONS:
+[14:59:20] 
+  [Retry 1/1] shell_body
+[14:59:20]     Reasoning: Doubled wall thickness from 5.0mm to 10.0mm to avoid topology change e
+[14:59:20]     Params: {"wall_thickness": 10.0, "inside_offset": true, "faces_to_remove": ["top_face"]}
+[14:59:20]     X FAILED 3 : Shell2 / Compute Failed // ASM_LOP_TWK_TOPOL_CHANGE -   The operation would cause a large topology change.
+    Try adjusting the values or changing the input geometry.
+[14:59:20] 
+>> RETRY SUMMARY: 0/1 succeeded
+[14:59:20] 
+>> FINAL SUMMARY:
+[14:59:20]    Total attempted: 3
+[14:59:20]    Total succeeded: 1
+[14:59:20]    Total operations: 2
+[14:59:20]    Succeeded: 1
+[14:59:20]    Failed: 1
+[14:59:20] 
+Saving modified file...
+[14:59:20]    Saving to job folder...
+[14:59:20]    Input path: jobs/4ea016c5-4e96-4eff-b08e-8a594a442f29/input.f3d
+[14:59:20]    Output path: jobs/4ea016c5-4e96-4eff-b08e-8a594a442f29\output.f3d
+[14:59:20]    Output dir exists: False
+[14:59:20]    Creating output directory...
+[14:59:20]    Creating export options...
+[14:59:20]    Executing export...
+[14:59:21]    Export complete. File size: 162639 bytes
+[14:59:21]    V Saved: jobs/4ea016c5-4e96-4eff-b08e-8a594a442f29\output.f3d
+[14:59:21] Uploading to backend...
+[14:59:21] 
+Job 4ea016c5... COMPLETE!
+[14:59:21]    1/2 operations succeeded
+[14:59:21]    Download: http://127.0.0.1:8000/download/4ea016c5-4e96-4eff-b08e-8a594a442f29
+[14:59:21] Execution completed
+[14:59:31] 
+[Poll #11] Checking for jobs...
+[14:59:31] Found 0 awaiting analysis, 1 ready to execute
+[14:59:31] Scheduling execution for 83805f12...
+[14:59:31] Executing on background thread (may have API limitations)...
+[14:59:31] 
+======================================================================
+[14:59:31] EXECUTION: 83805f12...
+[14:59:31]    Command: 'Reduce material usage by 40% while maintaining strength for a 20kg load'
+[14:59:31]    CODE VERSION: 2025-02-14-v3-DETAILED-LOGGING
+[14:59:31] ======================================================================
+[14:59:31] V Using active design: Headphone hanger
+[14:59:31] 
+DEBUG: About to loop through 2 operations
+[14:59:31]    Operations list type: <class 'list'>
+[14:59:31]    Operations content: [{'id': 'op_001', 'type': 'shell_body', 'params': {'wall_thickness': 5.0, 'inside_offset': True, 'faces_to_remove': ['top_face']}, 'reasoning': 'Hollow out body while maintaining clip strength'}]
+[14:59:31] 
+  [1/2] shell_body
+[14:59:31]     Reasoning: Hollow out body while maintaining clip strength
+[14:59:31]     Params: {"wall_thickness": 5.0, "inside_offset": true, "faces_to_remove": ["top_face"]}
+[14:59:31]     X FAILED 3 : Shell2 / Compute Failed // ASM_LOP_TWK_TOPOL_CHANGE -   The operation would cause a large topology change.
+    Try adjusting the values or changing the input geometry.
+[14:59:31] 
+  [2/2] add_ribs
+[14:59:31]     Reasoning: Reinforce hollowed structure
+[14:59:31]     Params: {"thickness": 3.0, "height": 10.0, "pattern": "cross_bracing", "locations": ["interior_walls"]}
+[14:59:31]     V SUCCESS Added small cross_bracing rib (3.0mm × 10.0mm)
+[14:59:31] 
+EXECUTION SUMMARY:
+[14:59:31]    Total operations: 2
+[14:59:31]    Succeeded: 1
+[14:59:31]    Failed: 1
+[14:59:31] 
+>> PHASE 3: Requesting alternatives for 1 failed operation(s)...
+[14:59:51]    V Received 1 alternative operation(s)
+[14:59:51] 
+>> EXECUTING RETRY OPERATIONS:
+[14:59:51] 
+  [Retry 1/1] shell_body
+[14:59:51]     Reasoning: Doubled wall thickness from 5.0mm to 10.0mm to avoid topology change e
+[14:59:51]     Params: {"wall_thickness": 10.0, "inside_offset": true, "faces_to_remove": ["top_face"]}
+[14:59:51]     X FAILED 3 : Shell2 / Compute Failed // ASM_LOP_TWK_TOPOL_CHANGE -   The operation would cause a large topology change.
+    Try adjusting the values or changing the input geometry.
+[14:59:51] 
+>> RETRY SUMMARY: 0/1 succeeded
+[14:59:51] 
+>> FINAL SUMMARY:
+[14:59:51]    Total attempted: 3
+[14:59:51]    Total succeeded: 1
+[14:59:51]    Total operations: 2
+[14:59:51]    Succeeded: 1
+[14:59:51]    Failed: 1
+[14:59:51] 
+Saving modified file...
+[14:59:51]    Saving to job folder...
+[14:59:51]    Input path: jobs/83805f12-e3da-4fb7-974e-95d99d1fac81/input.f3d
+[14:59:51]    Output path: jobs/83805f12-e3da-4fb7-974e-95d99d1fac81\output.f3d
+[14:59:51]    Output dir exists: False
+[14:59:51]    Creating output directory...
+[14:59:51]    Creating export options...
+[14:59:51]    Executing export...
+[14:59:51]    Export complete. File size: 164479 bytes
+[14:59:51]    V Saved: jobs/83805f12-e3da-4fb7-974e-95d99d1fac81\output.f3d
+[14:59:51] Uploading to backend...
+[14:59:51] 
+Job 83805f12... COMPLETE!
+[14:59:51]    1/2 operations succeeded
+[14:59:51]    Download: http://127.0.0.1:8000/download/83805f12-e3da-4fb7-974e-95d99d1fac81
+[14:59:51] Execution completed
+[15:00:01] 
+[Poll #12] Checking for jobs...
+[15:00:11] 
+[Poll #13] Checking for jobs...
+[15:00:21] 
+[Poll #14] Checking for jobs...
+[15:00:31] 
+[Poll #15] Checking for jobs...
+[15:00:41] 
+[Poll #16] Checking for jobs...
+[15:00:51] 
+[Poll #17] Checking for jobs...
+[15:01:01] 
+[Poll #18] Checking for jobs...
+[15:01:11] 
+[Poll #19] Checking for jobs...
