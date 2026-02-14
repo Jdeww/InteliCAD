@@ -15,7 +15,7 @@ jobs = {}
 # ============================================================================
 # NVIDIA API CONFIGURATION
 # ============================================================================
-NVIDIA_API_KEY = ""  # <-- REPLACE THIS!
+NVIDIA_API_KEY = "nvapi-PASTE_YOUR_KEY_HERE"  # <-- REPLACE THIS!
 # ============================================================================
 
 NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
@@ -524,7 +524,15 @@ CRITICAL RULES:
 - NEVER switch to a different operation type
 - ONLY adjust parameters of the SAME operation
 - If an operation is fundamentally impossible, recommend skipping it entirely
-- Focus on making parameters SAFER (thicker walls, smaller radii, fewer holes, etc.)"""
+- Focus on making parameters SAFER (thicker walls, smaller radii, fewer holes, etc.)
+
+CRITICAL: Understanding shell_body wall_thickness:
+- wall_thickness = how much solid material REMAINS after hollowing
+- THICKER walls = LESS material removed = SAFER operation
+- THINNER walls = MORE material removed = MORE aggressive = more likely to fail
+- "Topology change" error = too much material being removed
+- Solution: INCREASE wall_thickness (add 5-10mm to make walls thicker)
+- If already very thick (>8mm) and still failing: geometry incompatible, skip operation"""
     
     thinking_msg = f"""Original Goal: {original_command}
 
@@ -566,21 +574,38 @@ CRITICAL RULES:
 2. If an operation cannot work, return empty operations array
 3. Use SAFER parameters than the original (thicker walls, smaller radii, etc.)
 
-Example for failed shell_body:
-Original: {"type": "shell_body", "params": {"wall_thickness": 3.5}}
-Error: "topology change"
-Adjusted:
+CRITICAL UNDERSTANDING OF SHELL_BODY:
+- wall_thickness is how much MATERIAL REMAINS after hollowing
+- LARGER wall_thickness = LESS material removed = LESS aggressive = SAFER
+- SMALLER wall_thickness = MORE material removed = MORE aggressive = MORE likely to fail
+- "Topology change" error means TOO MUCH material is being removed
+- FIX: INCREASE wall_thickness significantly (add 5-10mm, not double it!)
+
+Example for failed shell_body with "topology change":
+Original: {"type": "shell_body", "params": {"wall_thickness": 5.0}}
+Error: "topology change - too much material removed"
+CORRECT Adjustment:
 {
   "operations": [
     {
       "id": "op_retry_001",
       "type": "shell_body",
       "params": {
-        "wall_thickness": 7.0,
+        "wall_thickness": 12.0,
         "inside_offset": true,
         "faces_to_remove": ["top_face"]
       },
-      "reasoning": "Doubled wall thickness from 3.5mm to 7.0mm to avoid topology change error"
+      "reasoning": "Increased wall thickness from 5.0mm to 12.0mm to remove LESS material and avoid topology change"
+    }
+  ]
+}
+
+WRONG Adjustment (DO NOT DO THIS):
+{
+  "operations": [
+    {
+      "type": "shell_body",
+      "params": {"wall_thickness": 2.5}  // WRONG - this removes MORE material!
     }
   ]
 }
@@ -592,13 +617,14 @@ Adjusted:
 {
   "operations": []
 }
-Reasoning: Fillet is fundamentally incompatible with this geometry - skip it
+Reasoning: Fillet is fundamentally incompatible with this geometry - skip it entirely
 
 PARAMETER ADJUSTMENT GUIDELINES:
-- shell_body: If failed, increase wall_thickness by 50-100%
-- fillet_all_edges: If failed due to geometry, SKIP (return empty)
-- strategic_holes: If failed due to boundary, SKIP (geometry already changed)
-- add_ribs: If failed, reduce height or thickness by 30-50%
+- shell_body with "topology change" error: ADD 5-10mm to wall_thickness (make walls THICKER)
+- shell_body with "topology change" and already thick (>8mm): SKIP entirely (geometry incompatible)
+- fillet_all_edges with geometry error: SKIP entirely (return empty array)
+- strategic_holes with "outside boundary": SKIP entirely (geometry changed)
+- add_ribs with any error: Reduce height by 50% OR skip
 
 Output ONLY the JSON with adjusted parameters for the SAME operations:"""
     
