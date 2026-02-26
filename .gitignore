@@ -121,5 +121,11 @@ Thumbs.db
 
 # Logs and tests
 .Logs.txt
+Logs.txt
+intelicad_log.txt
 .test.py
 /temp
+
+# Project-specific
+downloaded_result.f3d
+jobs/

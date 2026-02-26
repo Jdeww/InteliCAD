@@ -1,0 +1,10 @@
+# Web framework and server
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# HTTP clients
+httpx>=0.28.0
+requests>=2.32.0
+
+# Required for FastAPI file upload endpoints (multipart/form-data)
+python-multipart>=0.0.18
