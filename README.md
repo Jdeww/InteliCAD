@@ -51,6 +51,57 @@ User
 
 ---
 
+## Tech Stack
+
+### Backend
+| Layer | Technology |
+|-------|-----------|
+| Web framework | **FastAPI** |
+| ASGI server | **Uvicorn** |
+| Async HTTP client | **httpx** (NVIDIA API calls) |
+| HTTP client (scripts) | **requests** |
+| File uploads | **python-multipart** |
+| Language | **Python 3.10+** |
+
+### AI / LLM
+| Role | Model |
+|------|-------|
+| Design intent & retry reasoning | **NVIDIA Nemotron** (`llama-3.3-nemotron-super-49b-v1.5`) |
+| Fast structured JSON generation | **Meta Llama** (`llama-3.1-8b-instruct`) |
+| API provider | **NVIDIA Build API** (`integrate.api.nvidia.com`) |
+
+### CAD Integration
+| Layer | Technology |
+|-------|-----------|
+| CAD platform | **Autodesk Fusion 360** |
+| Add-in runtime | **Fusion 360 Add-In API** (`adsk.core`, `adsk.fusion`) |
+| Add-in HTTP comms | Python **stdlib** only (`urllib`) — no pip packages allowed inside Fusion |
+
+### Data & Storage
+| Concern | Approach |
+|---------|---------|
+| Job state | In-memory dict (no database) |
+| File storage | Local filesystem (`jobs/` directory) |
+| CAD file format | Fusion Archive (`.f3d`) |
+| Data exchange | JSON (operations, model analysis, AI responses) |
+
+### Developer Tooling
+| Tool | Purpose |
+|------|---------|
+| Git / GitHub | Version control |
+| `simulation.py` | Local test harness mimicking the Fusion add-in |
+| `Fusion_AddIn.py` | One-command add-in installer |
+| `update_addin.py` | Push code changes to the installed add-in |
+| `Test & Diagnostic Scripts/` | API tests, status checks, job inspection |
+
+### Platform
+| | |
+|--|--|
+| OS | **Windows** (Fusion 360 requirement; paths target `C:\Users\...`) |
+| Python environment | **venv** |
+
+---
+
 ## Project Structure
 
 ```
@@ -210,20 +261,20 @@ curl -O http://127.0.0.1:8000/download/{job_id}
 
 | Operation | Status | Description |
 |-----------|--------|-------------|
-| `shell_body` | Implemented | Hollow out a solid to a specified wall thickness |
-| `scale` | Implemented | Uniform or per-axis scaling |
-| `fillet_all_edges` | Implemented | Round all sharp edges to a given radius |
-| `mirror` | Implemented | Mirror across X, Y, or Z plane |
-| `rotate` | Implemented | Rotate by angle around an axis |
-| `move` | Implemented | Translate by x/y/z offset |
-| `add_ribs` | Implemented | Add reinforcing ribs (sized to 30% of part) |
-| `strategic_holes` | Implemented | Grid of holes for material/weight reduction |
-| `pattern` | Implemented | Basic feature patterning |
-| `topology_optimization` | Placeholder | Requires Fusion Generative Design API |
-| `lattice_infill` | Placeholder | Requires mesh generation tooling |
-| `variable_wall_thickness` | Placeholder | Not yet implemented |
-| `apply_draft_angles` | Placeholder | Not yet implemented |
-| `add_ventilation` | Placeholder | Not yet implemented |
+| `shell_body` | Implemented | Hollow out a solid to a specified wall thickness; opens the top face |
+| `scale` | Implemented | Uniform scaling or independent per-axis (x/y/z) scaling |
+| `fillet` / `fillet_edges` / `fillet_all_edges` | Implemented | Round all sharp (linear) edges to a given radius |
+| `mirror` | Implemented | Mirror all bodies across the X, Y, or Z construction plane |
+| `rotate` | Implemented | Rotate all bodies by angle (degrees) around X, Y, or Z axis |
+| `move` | Implemented | Translate all bodies by x/y/z offset in mm |
+| `add_ribs` | Implemented | Add a thin cross-brace rib via sketch extrude; sized to 30% of part |
+| `strategic_holes` | Implemented | Cut a grid of holes through the top face for material/weight reduction |
+| `add_ventilation` / `ventilation` | Implemented | Cut hexagonal or grid ventilation holes through the top face |
+| `apply_draft_angles` / `draft_angles` | Implemented | Apply draft angles to vertical faces for mold/manufacturing compatibility |
+| `variable_wall_thickness` / `variable_thickness` | Partial | Applies a uniform shell with top/bottom/side face classification; true per-face variable thickness not yet supported |
+| `pattern` | Partial | Rectangular pattern only; circular and other pattern types not yet supported |
+| `topology_optimization` / `run_topology_optimization` | Skipped | Requires Fusion Generative Design API; skips gracefully and suggests shell + ribs instead |
+| `lattice_infill` | Skipped | Requires a mesh generation library; skips gracefully and suggests shell instead |
 
 ---
 
