@@ -32,21 +32,21 @@ for i, command in enumerate(complex_commands[:2], 1):  # Test first 2 to save to
         response = requests.post(f"{BASE_URL}/submit-job/", files=files, data=data)
     
     if response.status_code != 200:
-        print(f"\n✗ Failed to submit: {response.status_code}")
+        print(f"\nFailed to submit: {response.status_code}")
         print(response.text)
         continue
     
     result = response.json()
     job_id = result.get('job_id')
     
-    print(f"\n✓ Job submitted: {job_id}")
+    print(f"\nJob submitted: {job_id}")
     print(f"Status: {result.get('status')}")
     
     # Display design intent analysis
     design_intent = result.get('design_intent', {})
     if design_intent and 'design_intent' in design_intent:
         di = design_intent['design_intent']
-        print(f"\n📋 DESIGN INTENT ANALYSIS:")
+        print(f"\nDESIGN INTENT ANALYSIS:")
         print(f"  Primary Goal: {di.get('primary_goal')}")
         print(f"  Material: {di.get('material_assumed', 'N/A')}")
         
@@ -63,7 +63,7 @@ for i, command in enumerate(complex_commands[:2], 1):  # Test first 2 to save to
     # Display modification strategy
     strategy = design_intent.get('modification_strategy', {})
     if strategy:
-        print(f"\n🎯 MODIFICATION STRATEGY:")
+        print(f"\nMODIFICATION STRATEGY:")
         print(f"  Approach: {strategy.get('approach')}")
         print(f"  Reasoning: {strategy.get('reasoning', 'N/A')[:100]}...")
         
@@ -74,7 +74,7 @@ for i, command in enumerate(complex_commands[:2], 1):  # Test first 2 to save to
     # Display high-level plan
     plan = design_intent.get('high_level_plan', [])
     if plan:
-        print(f"\n📝 HIGH-LEVEL PLAN ({len(plan)} steps):")
+        print(f"\nHIGH-LEVEL PLAN ({len(plan)} steps):")
         for step in plan[:3]:
             print(f"  Step {step.get('step')}: {step.get('description')}")
             print(f"    Expected: {step.get('expected_outcome')}")
@@ -82,7 +82,7 @@ for i, command in enumerate(complex_commands[:2], 1):  # Test first 2 to save to
     # Display preliminary operations
     ops = result.get('preliminary_operations', {}).get('operations', [])
     if ops:
-        print(f"\n⚙️  PRELIMINARY OPERATIONS ({len(ops)}):")
+        print(f"\nPRELIMINARY OPERATIONS ({len(ops)}):")
         for op in ops[:3]:
             print(f"  - {op.get('type')}: {op.get('reasoning', 'N/A')[:60]}...")
             params = op.get('params', {})
@@ -93,7 +93,7 @@ for i, command in enumerate(complex_commands[:2], 1):  # Test first 2 to save to
     clarification = design_intent.get('requires_user_clarification', {})
     questions = clarification.get('questions', [])
     if questions:
-        print(f"\n❓ QUESTIONS FOR USER:")
+        print(f"\nQUESTIONS FOR USER:")
         for q in questions:
             print(f"  - {q}")
         assumptions = clarification.get('assumptions_made', [])

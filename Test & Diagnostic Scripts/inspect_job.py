@@ -16,7 +16,7 @@ LOG_FILE = r"C:\Users\jdwil\Documents\Projects\GTC 2026 Golden Ticket\intelicad_
 def show_recent_log():
     """Show the last 30 lines of the Fusion add-in log"""
     if os.path.exists(LOG_FILE):
-        print(f"\n📄 Recent Fusion Add-In Activity (last 30 lines):")
+        print(f"\nRecent Fusion Add-In Activity (last 30 lines):")
         print("="*80)
         try:
             with open(LOG_FILE, 'r') as f:
@@ -25,9 +25,9 @@ def show_recent_log():
                 print(f"   {line.rstrip()}")
             print("="*80 + "\n")
         except Exception as e:
-            print(f"   ⚠️  Could not read log: {e}\n")
+            print(f"Could not read log: {e}\n")
     else:
-        print(f"\n⚠️  Log file not found at: {LOG_FILE}")
+        print(f"\nLog file not found at: {LOG_FILE}")
         print(f"   Make sure the Fusion add-in is running!\n")
 
 if len(sys.argv) < 2:
@@ -50,37 +50,37 @@ if len(sys.argv) < 2:
             print(f"  Command: {info.get('text_command')}")
             print(f"  Status: {info.get('status', info.get('phase'))}")
     except requests.exceptions.ConnectionError:
-        print("❌ Backend not running")
+        print("Backend not running")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
     
     sys.exit(0)
 
 job_id = sys.argv[1]
 
 print(f"\n{'='*80}")
-print(f"🔍 Inspecting Job: {job_id}")
+print(f"Inspecting Job: {job_id}")
 print(f"{'='*80}\n")
 
 try:
     response = requests.get(f"{BASE_URL}/job-status/{job_id}")
     job = response.json()
     
-    print(f"📌 Command: {job.get('text_command')}")
-    print(f"📊 Status: {job.get('status')}")
-    print(f"⏱️  Phase: {job.get('phase')}\n")
+    print(f"Command: {job.get('text_command')}")
+    print(f"Status: {job.get('status')}")
+    print(f"Phase: {job.get('phase')}\n")
     
     # Design Intent
     intent = job.get('design_intent', {})
     if intent:
-        print(f"🎯 Design Intent:")
+        print(f"Design Intent:")
         print(f"   Goal: {intent.get('design_intent', {}).get('primary_goal')}")
         print(f"   Strategy: {intent.get('modification_strategy', {}).get('approach')}\n")
     
     # Model Analysis
     analysis = job.get('model_analysis')
     if analysis:
-        print(f"📐 Model Analysis:")
+        print(f"Model Analysis:")
         print(f"   Mass: {analysis.get('current_mass')}g")
         print(f"   Volume: {analysis.get('volume')}cm³")
         print(f"   Material: {analysis.get('material')}\n")
@@ -89,7 +89,7 @@ try:
     final_ops = job.get('final_operations', {})
     if final_ops and final_ops.get('operations'):
         ops = final_ops['operations']
-        print(f"⚙️  Operations Generated ({len(ops)}):")
+        print(f"Operations Generated ({len(ops)}):")
         print(f"{'='*80}")
         for i, op in enumerate(ops, 1):
             print(f"\n[{i}] {op.get('type').upper()}")
@@ -101,17 +101,17 @@ try:
             if op.get('expected_results'):
                 print(f"    Expected: {op.get('expected_results')}")
     else:
-        print(f"⚠️  No operations found in final_operations")
+        print(f"No operations found in final_operations")
         
         # Check preliminary operations
         prelim = job.get('preliminary_operations', {})
         if prelim and prelim.get('operations'):
-            print(f"\n📝 Preliminary Operations (before refinement): {len(prelim['operations'])}")
+            print(f"\nPreliminary Operations (before refinement): {len(prelim['operations'])}")
     
     print(f"\n{'='*80}")
     
     # Show recent log activity for this job
-    print(f"\n📄 Fusion Add-In Log (filtering for {job_id[:8]}):")
+    print(f"\nFusion Add-In Log (filtering for {job_id[:8]}):")
     print("="*80)
     if os.path.exists(LOG_FILE):
         try:
@@ -129,13 +129,13 @@ try:
                 for line in lines[-10:]:
                     print(f"   {line.rstrip()}")
         except Exception as e:
-            print(f"   ⚠️  Could not read log: {e}")
+            print(f"Could not read log: {e}")
     else:
-        print(f"   ⚠️  Log file not found: {LOG_FILE}")
+        print(f"Log file not found: {LOG_FILE}")
     print("="*80)
     
 except requests.exceptions.ConnectionError:
-    print("❌ Backend not running. Start it with:")
+    print("Backend not running. Start it with:")
     print("   uvicorn fastUpload:app --reload")
 except Exception as e:
-    print(f"❌ Error: {e}")
+    print(f"Error: {e}")

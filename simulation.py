@@ -17,7 +17,7 @@ BASE_URL = "http://127.0.0.1:8000"
 POLL_INTERVAL = 5  # seconds
 
 print("=" * 80)
-print("🔧 InteliCAD Fusion 360 Simulator")
+print("InteliCAD Fusion 360 Simulator")
 print("   Mimics the Fusion 360 add-in for testing")
 print(f"   Polling {BASE_URL} every {POLL_INTERVAL} seconds...")
 print("=" * 80)
@@ -77,18 +77,18 @@ def simulate_execute_operations(input_file_path, operations, job_id):
 
         # Simulate processing time
         time.sleep(0.5)
-        print(f"    ✓ Simulated successfully")
+        print(f"Simulated successfully")
 
     # Copy input file as output (real add-in would save modified file)
     if os.path.exists(input_file_path):
         shutil.copy2(input_file_path, output_path)
-        print(f"\n  ✓ Output file created: {output_path}")
+        print(f"\nOutput file created: {output_path}")
         print(f"    Size: {os.path.getsize(output_path):,} bytes")
     else:
         # Create a dummy output file if input doesn't exist
         with open(output_path, 'wb') as f:
             f.write(b"SIMULATED_F3D_OUTPUT_" + job_id.encode())
-        print(f"\n  ⚠️  Input file not found, created placeholder output")
+        print(f"\nInput file not found, created placeholder output")
 
     return output_path
 
@@ -96,7 +96,7 @@ def simulate_execute_operations(input_file_path, operations, job_id):
 def process_analysis_job(job_id, job_info):
     """Handle a job that needs model analysis"""
     print(f"\n{'='*80}")
-    print(f"📊 ANALYZING JOB: {job_id}")
+    print(f"ANALYZING JOB: {job_id}")
     print(f"   Command: '{job_info.get('text_command')}'")
     print(f"{'='*80}")
 
@@ -104,10 +104,10 @@ def process_analysis_job(job_id, job_info):
     print(f"\n  Input file: {input_file}")
 
     # Simulate model analysis
-    print("  🔍 Simulating model analysis...")
+    print("Simulating model analysis...")
     analysis = simulate_model_analysis(input_file)
 
-    print(f"  ✓ Analysis results:")
+    print(f"Analysis results:")
     print(f"    Mass:    {analysis['current_mass']}g")
     print(f"    Volume:  {analysis['volume']}cm³")
     print(f"    Box:     {analysis['bounding_box']['x']} x "
@@ -117,7 +117,7 @@ def process_analysis_job(job_id, job_info):
     print(f"    Shell:   {'Yes' if analysis['can_shell'] else 'No'}")
 
     # Submit analysis to backend
-    print("\n  📤 Submitting analysis to backend...")
+    print("\nSubmitting analysis to backend...")
     response = requests.post(
         f"{BASE_URL}/jobs/{job_id}/analysis",
         json=analysis
@@ -126,31 +126,31 @@ def process_analysis_job(job_id, job_info):
     if response.status_code == 200:
         result = response.json()
         ops = result.get('operations', {}).get('operations', [])
-        print(f"  ✓ Backend refined operations: {len(ops)} operations ready")
+        print(f"Backend refined operations: {len(ops)} operations ready")
     else:
-        print(f"  ✗ Failed to submit analysis: {response.status_code}")
+        print(f"Failed to submit analysis: {response.status_code}")
         print(f"    {response.text}")
 
 
 def process_execution_job(job_id, job_info):
     """Handle a job that's ready for execution"""
     print(f"\n{'='*80}")
-    print(f"⚙️  EXECUTING JOB: {job_id}")
-    print(f"   Command: '{job_info.get('text_command')}'")
+    print(f"EXECUTING JOB: {job_id}")
+    print(f"Command: '{job_info.get('text_command')}'")
     print(f"{'='*80}")
 
     input_file = job_info.get('input_file')
     final_operations = job_info.get('final_operations', {})
     operations = final_operations.get('operations', [])
 
-    print(f"\n  Input file: {input_file}")
-    print(f"  Operations: {len(operations)}")
+    print(f"\nInput file: {input_file}")
+    print(f"Operations: {len(operations)}")
 
     # Simulate executing operations
     output_path = simulate_execute_operations(input_file, operations, job_id)
 
     # Upload result back to backend
-    print(f"\n  📤 Uploading result to backend...")
+    print(f"\nUploading result to backend...")
     with open(output_path, 'rb') as f:
         response = requests.post(
             f"{BASE_URL}/complete-job/{job_id}",
@@ -158,11 +158,11 @@ def process_execution_job(job_id, job_info):
         )
 
     if response.status_code == 200:
-        print(f"  ✓ Job completed and uploaded!")
-        print(f"  📥 User can now download at: {BASE_URL}/download/{job_id}")
+        print(f"Job completed and uploaded!")
+        print(f"User can now download at: {BASE_URL}/download/{job_id}")
     else:
-        print(f"  ✗ Failed to upload result: {response.status_code}")
-        print(f"    {response.text}")
+        print(f"Failed to upload result: {response.status_code}")
+        print(f"{response.text}")
 
 
 # ============================================================================
@@ -177,7 +177,7 @@ while True:
         response = requests.get(f"{BASE_URL}/poll-jobs/", timeout=10)
 
         if response.status_code != 200:
-            print(f"⚠️  Poll failed: {response.status_code}")
+            print(f"Poll failed: {response.status_code}")
             time.sleep(POLL_INTERVAL)
             continue
 
@@ -187,7 +187,7 @@ while True:
 
         total = len(awaiting) + len(ready)
         if total > 0:
-            print(f"\n📬 Found {total} job(s): "
+            print(f"\nFound {total} job(s): "
                   f"{len(awaiting)} need analysis, "
                   f"{len(ready)} ready to execute")
 
@@ -204,9 +204,9 @@ while True:
                 process_execution_job(job_id, job_info)
 
     except requests.exceptions.ConnectionError:
-        print(f"⚠️  Cannot connect to backend at {BASE_URL}")
-        print(f"   Make sure your server is running: uvicorn fastUpload:app --reload")
+        print(f"Cannot connect to backend at {BASE_URL}")
+        print(f"Make sure your server is running: uvicorn fastUpload:app --reload")
     except Exception as e:
-        print(f"⚠️  Error: {e}")
+        print(f"Error: {e}")
 
     time.sleep(POLL_INTERVAL)

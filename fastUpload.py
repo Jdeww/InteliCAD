@@ -293,7 +293,7 @@ async def phase2_generate_operations(design_plan: dict, model_analysis: dict = N
     """
     
     # STEP 1: Let Nemotron think
-    print("🧠 Phase 2 Step 1: Letting Nemotron analyze and plan...")
+    print("Phase 2 Step 1: Letting Nemotron analyze and plan...")
     print("   Using nvidia/llama-3.3-nemotron-super-49b-v1.5 (strategic reasoning)")
     thinking_prompt = "You are a CAD expert. Think through the strategy for this design."
     
@@ -309,10 +309,10 @@ async def phase2_generate_operations(design_plan: dict, model_analysis: dict = N
         max_tokens=1500,
         model="nvidia/llama-3.3-nemotron-super-49b-v1.5"
     )
-    print(f"✓ Thinking complete")
+    print(f"Thinking complete")
     
     # STEP 2: Request clean JSON only
-    print("📝 Phase 2 Step 2: Generating operations JSON...")
+    print("Phase 2 Step 2: Generating operations JSON...")
     print("   Using meta/llama-3.1-8b-instruct (fast, structured output)")
     
     json_prompt = """You are a JSON generator. Output ONLY the JSON object, nothing else.
@@ -459,16 +459,16 @@ Generate operations JSON with COMPLETE params:"""
         result["operations"] = filtered_ops
         
         if removed_ops:
-            print(f"   ⚠️  Filtered out inappropriate operations: {', '.join(removed_ops)}")
+            print(f"   Filtered out inappropriate operations: {', '.join(removed_ops)}")
     
     ops_count = len(result.get("operations", []))
     if ops_count == 0:
-        print(f"\n⚠️  Phase 2 returned 0 operations!")
+        print(f"\nPhase 2 returned 0 operations!")
         print(f"📄 Raw response: {result.get('raw_response', str(result))[:800]}")
         if "error" in result:
-            print(f"❌ Error: {result['error']}\n")
+            print(f"Error: {result['error']}\n")
     else:
-        print(f"✓ Generated {ops_count} operations\n")
+        print(f"Generated {ops_count} operations\n")
     
     return result
 
@@ -495,7 +495,7 @@ async def phase3_retry_failed_operations(
     failed = [r for r in execution_results if not r.get('success')]
     
     if not failed:
-        print("   ✓ All operations succeeded - checking if we can be more aggressive...")
+        print("   All operations succeeded - checking if we can be more aggressive...")
         # Could optionally make successful operations more aggressive here
         # For now, just return empty
         return {"operations": []}
@@ -516,7 +516,7 @@ async def phase3_retry_failed_operations(
         })
     
     # STEP 1: Analyze failures and determine parameter adjustments
-    print("🧠 Phase 3 Step 1: Analyzing failures and planning parameter adjustments...")
+    print("Phase 3 Step 1: Analyzing failures and planning parameter adjustments...")
     
     thinking_prompt = """You are a CAD expert analyzing failed operations to determine better parameters.
 
@@ -565,7 +565,7 @@ Think through each operation separately."""
     print(f"✓ Analysis complete")
     
     # STEP 2: Generate adjusted parameters for SAME operations
-    print("📝 Phase 3 Step 2: Generating adjusted parameters...")
+    print("Phase 3 Step 2: Generating adjusted parameters...")
     
     json_prompt = """You are a JSON generator. Output ONLY valid JSON with parameter adjustments.
 
@@ -670,16 +670,16 @@ async def submit_job(file: UploadFile, text_command: str = Form(...)):
         shutil.copyfileobj(file.file, buffer)
     
     print(f"\n{'='*80}")
-    print(f"📝 NEW JOB: {job_id}")
+    print(f"NEW JOB: {job_id}")
     print(f"Command: '{text_command}'")
     print(f"{'='*80}\n")
     
     # PHASE 1: Analyze design intent
-    print("🧠 PHASE 1: Analyzing design intent...")
+    print("PHASE 1: Analyzing design intent...")
     design_intent = await phase1_design_intent_analysis(text_command)
     
     if "error" in design_intent:
-        print(f"❌ Phase 1 failed: {design_intent['error']}")
+        print(f"Phase 1 failed: {design_intent['error']}")
         jobs[job_id] = {
             "status": "failed",
             "error": design_intent["error"],
@@ -695,19 +695,19 @@ async def submit_job(file: UploadFile, text_command: str = Form(...)):
     print(f"  Plan Steps: {len(design_intent.get('high_level_plan', []))}")
     
     # PHASE 2: Generate initial operations (without model analysis yet)
-    print("\n⚙️  PHASE 2: Generating CAD operations...")
+    print("\nPHASE 2: Generating CAD operations...")
     operations = await phase2_generate_operations(design_intent, model_analysis=None)
     
     if "error" in operations:
-        print(f"❌ Phase 2 failed: {operations['error']}")
+        print(f"Phase 2 failed: {operations['error']}")
         if "summary" in operations:
-            print(f"📄 Nemotron returned: {operations['summary']}")
+            print(f"Nemotron returned: {operations['summary']}")
     else:
         ops_count = len(operations.get('operations', []))
-        print(f"✓ Generated {ops_count} operations")
+        print(f"Generated {ops_count} operations")
         if ops_count == 0 and "error" in operations:
-            print(f"⚠️  Warning: {operations.get('error')}")
-            print(f"📄 Raw summary: {operations.get('summary', 'N/A')}")
+            print(f"Warning: {operations.get('error')}")
+            print(f"Raw summary: {operations.get('summary', 'N/A')}")
         for i, op in enumerate(operations.get('operations', [])[:3], 1):
             print(f"  {i}. {op.get('type')} - {op.get('reasoning', 'N/A')[:50]}...")
     
@@ -725,7 +725,7 @@ async def submit_job(file: UploadFile, text_command: str = Form(...)):
         "phase": "awaiting_model_analysis"
     }
     
-    print(f"\n✓ Job {job_id} created and awaiting model analysis from Fusion 360\n")
+    print(f"\nJob {job_id} created and awaiting model analysis from Fusion 360\n")
     
     return {
         "job_id": job_id,
@@ -749,14 +749,14 @@ async def submit_model_analysis(job_id: str, analysis: dict):
     job["model_analysis"] = analysis
     
     print(f"\n{'='*80}")
-    print(f"📊 RECEIVED MODEL ANALYSIS for {job_id}")
+    print(f"RECEIVED MODEL ANALYSIS for {job_id}")
     print(f"{'='*80}")
     print(f"Current Mass: {analysis.get('current_mass')}g")
     print(f"Volume: {analysis.get('volume')}cm³")
     print(f"Suitable for shelling: {analysis.get('can_shell')}")
     
     # PHASE 2B: Refine operations with model analysis
-    print("\n⚙️  PHASE 2B: Refining operations with model data...")
+    print("\nPHASE 2B: Refining operations with model data...")
     refined_operations = await phase2_generate_operations(
         job["design_intent"], 
         model_analysis=analysis
@@ -766,9 +766,9 @@ async def submit_model_analysis(job_id: str, analysis: dict):
     job["status"] = "pending"  # Ready for execution
     job["phase"] = "ready_for_execution"
     
-    print(f"✓ Operations refined and ready for execution")
-    print(f"  Operation count: {len(refined_operations.get('operations', []))}")
-    print(f"\n✓ Job {job_id} ready for Fusion 360 to execute\n")
+    print(f"Operations refined and ready for execution")
+    print(f"Operation count: {len(refined_operations.get('operations', []))}")
+    print(f"\nJob {job_id} ready for Fusion 360 to execute\n")
     
     return {
         "status": "success",
@@ -830,7 +830,7 @@ async def complete_job(job_id: str, file: UploadFile):
     jobs[job_id]["output_file"] = output_path
     jobs[job_id]["phase"] = "completed"
     
-    print(f"✓ Job {job_id} completed successfully")
+    print(f"Job {job_id} completed successfully")
     
     return {"status": "success"}
 
@@ -869,7 +869,7 @@ async def retry_failed_operations(job_id: str, execution_results: dict):
     job["retry_operations"] = retry_ops
     job["phase"] = "retry_ready"
     
-    print(f"✓ Job {job_id} has {len(retry_ops.get('operations', []))} retry operations ready")
+    print(f"Job {job_id} has {len(retry_ops.get('operations', []))} retry operations ready")
     
     return {
         "status": "success",

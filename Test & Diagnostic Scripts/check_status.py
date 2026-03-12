@@ -8,25 +8,23 @@ import requests
 LOG_FILE = os.path.join(os.path.expanduser("~"), "Desktop", "intelicad_log.txt")
 BACKEND_URL = "http://127.0.0.1:8000"
 
-print("="*80)
-print("🔍 InteliCAD Diagnostic")
-print("="*80)
+print("InteliCAD Diagnostic")
 
 # 1. Check log file
 print("\n1. Checking log file...")
 if os.path.exists(LOG_FILE):
-    print(f"   ✓ Log file exists: {LOG_FILE}")
+    print(f"Log file exists: {LOG_FILE}")
     with open(LOG_FILE, 'r') as f:
         lines = f.readlines()
     
-    print(f"   📄 Last 20 lines of log:")
+    print(f"Last 20 lines of log:")
     print("   " + "-"*70)
     for line in lines[-20:]:
         print(f"   {line.rstrip()}")
     print("   " + "-"*70)
 else:
-    print(f"   ❌ Log file not found at: {LOG_FILE}")
-    print("   → The add-in may not be running")
+    print(f"Log file not found at: {LOG_FILE}")
+    print("The add-in may not be running")
 
 # 2. Check backend jobs
 print("\n2. Checking pending jobs...")
@@ -48,30 +46,28 @@ try:
             print(f"      - {job_id[:8]}... '{info.get('text_command')}'")
     
 except Exception as e:
-    print(f"   ❌ Could not connect to backend: {e}")
+    print(f"Could not connect to backend: {e}")
 
 # 3. Check if add-in is polling
 print("\n3. Diagnosis:")
 if not os.path.exists(LOG_FILE):
-    print("   ❌ PROBLEM: Add-in is not running")
+    print("PROBLEM: Add-in is not running")
     print("   → Start it in Fusion: Utilities → Add-Ins → InteliCAD → Run")
 elif os.path.exists(LOG_FILE):
     with open(LOG_FILE, 'r') as f:
         content = f.read()
     
     if "InteliCAD started" not in content:
-        print("   ❌ PROBLEM: Add-in started but crashed immediately")
+        print("PROBLEM: Add-in started but crashed immediately")
         print("   → Check the log file for errors")
-    elif "📬 Found" in content:
+    elif "Found" in content:
         print("   ✓ Add-in IS polling and finding jobs")
-        if "❌" in content:
-            print("   ⚠️  But there are errors - check log file")
     elif len(content.strip().split('\n')) < 5:
-        print("   ⚠️  PROBLEM: Add-in started but no polling activity")
+        print("PROBLEM: Add-in started but no polling activity")
         print("   → The polling thread may have crashed")
         print("   → Check if backend is running: http://127.0.0.1:8000")
     else:
-        print("   ⚠️  Add-in is running but may not be finding jobs")
+        print("Add-in is running but may not be finding jobs")
 
 print("\n" + "="*80)
 print("NEXT STEPS:")

@@ -24,7 +24,7 @@ FILES_TO_COPY = [
 ]
 
 print("="*80)
-print("🔄 Updating Fusion 360 Add-In Files")
+print("Updating Fusion 360 Add-In Files")
 print("="*80)
 
 print(f"\nSource: {REPO_DIR}")
@@ -32,8 +32,8 @@ print(f"Destination: {FUSION_ADDINS}\n")
 
 # Check if destination exists
 if not os.path.exists(FUSION_ADDINS):
-    print(f"❌ Fusion add-ins folder not found!")
-    print(f"   Expected: {FUSION_ADDINS}")
+    print(f"Fusion add-ins folder not found!")
+    print(f"Expected: {FUSION_ADDINS}")
     print(f"\n   Run install_addin.py first to create the folder")
     exit(1)
 
@@ -44,21 +44,21 @@ for filename in FILES_TO_COPY:
     dst = os.path.join(FUSION_ADDINS, filename)
     
     if not os.path.exists(src):
-        print(f"⚠️  {filename} - NOT FOUND in repository")
+        print(f"{filename} - NOT FOUND in repository")
         continue
     
     try:
         shutil.copy2(src, dst)
-        print(f"✅ {filename} - copied successfully")
+        print(f"{filename} - copied successfully")
         success_count += 1
     except Exception as e:
-        print(f"❌ {filename} - FAILED: {e}")
+        print(f"{filename} - FAILED: {e}")
 
 print(f"\n{'='*80}")
-print(f"✅ Updated {success_count}/{len(FILES_TO_COPY)} files")
+print(f"Updated {success_count}/{len(FILES_TO_COPY)} files")
 print(f"{'='*80}")
 
-print(f"\n📌 NEXT STEPS:")
+print(f"\nNEXT STEPS:")
 print(f"1. Open Fusion 360")
 print(f"2. Utilities → Add-Ins → Scripts and Add-Ins")
 print(f"3. Find 'InteliCAD' and click 'Stop'")

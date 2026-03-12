@@ -17,9 +17,7 @@ test_commands = [
     "Create a linear pattern with 5 copies spaced 20mm apart"
 ]
 
-print("=" * 80)
 print("TESTING NEMOTRON CAD COMMAND GENERATION")
-print("=" * 80)
 
 for i, command in enumerate(test_commands, 1):
     print(f"\n{'='*80}")
@@ -33,12 +31,12 @@ for i, command in enumerate(test_commands, 1):
     
     if response.status_code == 200:
         result = response.json()
-        print(f"\n✓ Job submitted successfully")
+        print(f"\nJob submitted successfully")
         print(f"Job ID: {result['job_id']}")
         print(f"\nGenerated CAD Commands:")
         print(json.dumps(result.get('cad_commands', {}), indent=2))
     else:
-        print(f"\n✗ Failed: {response.status_code}")
+        print(f"\nFailed: {response.status_code}")
         print(response.text)
     
     print()

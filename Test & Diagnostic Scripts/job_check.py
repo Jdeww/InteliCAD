@@ -83,15 +83,15 @@ def compare_files(input_path, output_path):
     if content_differs and size_diff != 0:
         results["files_differ"] = True
         if size_diff < 0:
-            results["verdict"] = "✅ File is SMALLER - material was likely removed"
+            results["verdict"] = "File is SMALLER - material was likely removed"
         else:
-            results["verdict"] = "✅ File is LARGER - geometry was likely added"
+            results["verdict"] = "File is LARGER - geometry was likely added"
     elif content_differs:
         results["files_differ"] = True
-        results["verdict"] = "⚠️  Content differs but same size - metadata may have changed"
+        results["verdict"] = "Content differs but same size - metadata may have changed"
     else:
         results["files_differ"] = False
-        results["verdict"] = "❌ Files are IDENTICAL - no changes were made (simulator mode)"
+        results["verdict"] = "Files are IDENTICAL - no changes were made (simulator mode)"
 
     return results
 
@@ -103,10 +103,10 @@ def display_job_report(job_id, job_data):
     print(f"{'='*80}")
 
     # Basic info
-    print(f"\n📋 COMMAND:")
+    print(f"\nCOMMAND:")
     print(f"   '{job_data.get('text_command', 'N/A')}'")
 
-    print(f"\n📊 STATUS: {job_data.get('status', 'unknown').upper()}")
+    print(f"\nSTATUS: {job_data.get('status', 'unknown').upper()}")
 
     # Design intent
     design_intent = job_data.get('design_intent', {})
@@ -114,7 +114,7 @@ def display_job_report(job_id, job_data):
         di = design_intent.get('design_intent', {})
         strategy = design_intent.get('modification_strategy', {})
 
-        print(f"\n🧠 AI PLAN:")
+        print(f"\nAI PLAN:")
         print(f"   Goal:     {di.get('primary_goal', 'N/A')}")
         print(f"   Strategy: {strategy.get('approach', 'N/A')}")
 
@@ -127,7 +127,7 @@ def display_job_report(job_id, job_data):
     # Model analysis
     analysis = job_data.get('model_analysis', {})
     if analysis and isinstance(analysis, dict):
-        print(f"\n📐 MODEL ANALYSIS (Before):")
+        print(f"\nMODEL ANALYSIS (Before):")
         print(f"   Mass:    {analysis.get('current_mass', 'N/A')}g")
         print(f"   Volume:  {analysis.get('volume', 'N/A')}cm³")
         box = analysis.get('bounding_box', {})
@@ -141,7 +141,7 @@ def display_job_report(job_id, job_data):
     if final_ops and isinstance(final_ops, dict):
         ops = final_ops.get('operations', [])
         if ops:
-            print(f"\n⚙️  OPERATIONS EXECUTED ({len(ops)}):")
+            print(f"\nOPERATIONS EXECUTED ({len(ops)}):")
             for i, op in enumerate(ops, 1):
                 op_type = op.get('type', 'unknown')
                 reasoning = op.get('reasoning', 'N/A')
@@ -156,27 +156,27 @@ def display_job_report(job_id, job_data):
     input_file = job_data.get('input_file')
     output_file = job_data.get('output_file')
 
-    print(f"\n📁 FILE VERIFICATION:")
+    print(f"\nFILE VERIFICATION:")
 
     input_check = check_file_exists(input_file)
     if input_check['exists']:
-        print(f"   Input:  ✅ {input_check['path']}")
+        print(f"   Input:  {input_check['path']}")
         print(f"           Size: {input_check['size_human']}")
     else:
-        print(f"   Input:  ❌ {input_check['reason']}")
+        print(f"   Input:  {input_check['reason']}")
 
     output_check = check_file_exists(output_file)
     if output_check['exists']:
-        print(f"   Output: ✅ {output_check['path']}")
+        print(f"   Output: {output_check['path']}")
         print(f"           Size: {output_check['size_human']}")
         print(f"           Modified: {output_check['modified']}")
     else:
-        print(f"   Output: ❌ {output_check['reason']}")
+        print(f"   Output: {output_check['reason']}")
 
     # Compare files
     if input_check['exists'] and output_check['exists']:
         comparison = compare_files(input_file, output_file)
-        print(f"\n🔍 CHANGE DETECTION:")
+        print(f"\nCHANGE DETECTION:")
         print(f"   Input size:  {format_bytes(comparison.get('input_size', 0))}")
         print(f"   Output size: {format_bytes(comparison.get('output_size', 0))}")
         size_change = comparison.get('size_change_bytes', 0)
@@ -186,22 +186,22 @@ def display_job_report(job_id, job_data):
         print(f"\n   Verdict: {comparison.get('verdict', 'unknown')}")
 
     # What this means for real Fusion integration
-    print(f"\n💡 NEXT STEPS:")
+    print(f"\nNEXT STEPS:")
     if job_data.get('status') == 'completed':
         if output_check['exists']:
             if not compare_files(input_file, output_file).get('files_differ'):
-                print("   ⚠️  Currently running in SIMULATOR mode.")
-                print("   ⚠️  The output file is a copy of the input.")
-                print("   👉 To see REAL changes:")
+                print("   Currently running in SIMULATOR mode.")
+                print("   The output file is a copy of the input.")
+                print("   To see REAL changes:")
                 print("      1. Install the Fusion 360 add-in")
                 print("      2. Have Fusion 360 open with your model")
                 print("      3. The add-in will execute real operations")
                 print("      4. Output file will show actual geometry changes")
             else:
-                print("   ✅ Changes detected in output file!")
-                print("   👉 Open the output .f3d file in Fusion 360 to inspect changes")
+                print("   Changes detected in output file!")
+                print("   Open the output .f3d file in Fusion 360 to inspect changes")
         else:
-            print("   ❌ Output file missing - check server logs")
+            print("   Output file missing - check server logs")
     else:
         print(f"   Job status is '{job_data.get('status')}' - not yet complete")
 
@@ -213,7 +213,7 @@ def main():
     specific_job_id = sys.argv[1] if len(sys.argv) > 1 else None
 
     print("=" * 80)
-    print("🔍 InteliCAD Job Verifier")
+    print("InteliCAD Job Verifier")
     print("=" * 80)
 
     if specific_job_id:
@@ -222,23 +222,23 @@ def main():
         if response.status_code == 200:
             job_data = response.json()
             if 'error' in job_data:
-                print(f"\n❌ Job not found: {specific_job_id}")
+                print(f"\nJob not found: {specific_job_id}")
             else:
                 display_job_report(specific_job_id, job_data)
         else:
-            print(f"❌ Failed to get job: {response.status_code}")
+            print(f"Failed to get job: {response.status_code}")
     else:
         # Check all jobs in the jobs/ directory
         jobs_dir = "jobs"
         if not os.path.exists(jobs_dir):
-            print("\n⚠️  No jobs directory found. Submit some jobs first!")
+            print("\nNo jobs directory found. Submit some jobs first!")
             return
 
         job_dirs = [d for d in os.listdir(jobs_dir)
                     if os.path.isdir(os.path.join(jobs_dir, d))]
 
         if not job_dirs:
-            print("\n⚠️  No jobs found. Submit some jobs first!")
+            print("\nNo jobs found. Submit some jobs first!")
             return
 
         print(f"\nFound {len(job_dirs)} job(s). Checking status...\n")
@@ -261,7 +261,7 @@ def main():
                         print(f"⏳ {job_id[:8]}... - {status}")
                     elif status == 'failed':
                         failed += 1
-                        print(f"❌ {job_id[:8]}... - FAILED: {job_data.get('error', 'unknown')}")
+                        print(f"{job_id[:8]}... - FAILED: {job_data.get('error', 'unknown')}")
 
         print(f"\n{'='*80}")
         print(f"SUMMARY: {completed} completed, {pending} pending, {failed} failed")

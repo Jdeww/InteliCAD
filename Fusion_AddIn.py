@@ -27,7 +27,7 @@ POSSIBLE_DIRS = [
 ]
 
 print("=" * 80)
-print("🔧 InteliCAD - Fusion 360 Add-In Installer")
+print("InteliCAD - Fusion 360 Add-In Installer")
 print("=" * 80)
 
 # Step 1: Find Fusion 360 add-ins directory
@@ -41,14 +41,14 @@ for d in POSSIBLE_DIRS:
         break
 
 if not fusion_addin_dir:
-    print("   ❌ Could not find Fusion 360 Add-Ins directory automatically.")
+    print("Could not find Fusion 360 Add-Ins directory automatically.")
     print("\n   Please enter the path manually.")
-    print("   (Open Fusion 360 → Utilities → Add-Ins → Scripts and Add-Ins")
+    print("(Open Fusion 360 → Utilities → Add-Ins → Scripts and Add-Ins")
     print("    click the green '+' icon to see the folder location)")
     fusion_addin_dir = input("\n   Paste the path here: ").strip().strip('"')
     
     if not os.path.exists(fusion_addin_dir):
-        print(f"\n   ❌ Path does not exist: {fusion_addin_dir}")
+        print(f"\nPath does not exist: {fusion_addin_dir}")
         sys.exit(1)
 
 # Step 2: Check source files exist
@@ -59,25 +59,25 @@ missing = []
 for f in ADDIN_FILES:
     src = os.path.join(script_dir, "fusion_addin", f)
     if os.path.exists(src):
-        print(f"   ✓ {f}")
+        print(f"{f}")
     else:
-        print(f"   ❌ Missing: {f}")
+        print(f"Missing: {f}")
         missing.append(f)
 
 if missing:
-    print(f"\n❌ Missing {len(missing)} file(s). Make sure all add-in files are in the fusion_addin/ folder.")
+    print(f"\nMissing {len(missing)} file(s). Make sure all add-in files are in the fusion_addin/ folder.")
     sys.exit(1)
 
 # Step 3: Create add-in folder
-print(f"\n3. Creating add-in folder...")
+print(f"\n3.Creating add-in folder...")
 target_dir = os.path.join(fusion_addin_dir, ADDIN_NAME)
 
 if os.path.exists(target_dir):
-    print(f"   ⚠️  Folder already exists, updating...")
+    print(f"Folder already exists, updating...")
     shutil.rmtree(target_dir)
 
 os.makedirs(target_dir)
-print(f"   ✓ Created: {target_dir}")
+print(f"Created: {target_dir}")
 
 # Step 4: Copy files
 print(f"\n4. Copying files...")
@@ -85,12 +85,12 @@ for f in ADDIN_FILES:
     src = os.path.join(script_dir, "fusion_addin", f)
     dst = os.path.join(target_dir, f)
     shutil.copy2(src, dst)
-    print(f"   ✓ {f}")
+    print(f"{f}")
 
 # Step 5: Done
 print(f"""
 {'='*80}
-✅ Installation Complete!
+Installation Complete!
 
 Next steps:
 1. Open Fusion 360
