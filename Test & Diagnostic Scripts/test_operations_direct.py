@@ -80,12 +80,12 @@ def run(context):
             try:
                 result = executor.execute(op)
                 if result["success"]:
-                    status = f"✅ SUCCESS: {result.get('message', 'Done')}"
+                    status = f"SUCCESS: {result.get('message', 'Done')}"
                 else:
-                    status = f"❌ FAILED: {result.get('error', 'Unknown')}"
+                    status = f"FAILED: {result.get('error', 'Unknown')}"
                 results.append(f"[{i}] {op_type}\n    {status}")
             except Exception as e:
-                results.append(f"[{i}] {op_type}\n    ❌ EXCEPTION: {e}")
+                results.append(f"[{i}] {op_type}\n    EXCEPTION: {e}")
         
         # Show results
         message = "OPERATION TEST RESULTS:\n\n" + "\n\n".join(results)
